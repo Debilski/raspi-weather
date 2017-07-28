@@ -1,0 +1,10 @@
+[Unit]
+Description=Run measure three times a minute
+
+[Timer]
+OnBootSec=60
+OnUnitActiveSec=60
+AccuracySec=60
+
+[Install]
+WantedBy=timers.target

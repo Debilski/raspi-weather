@@ -1,0 +1,75 @@
+---
+- name: Set up the rpi
+
+  hosts: localhost
+  connection: local
+
+  vars:
+    - scripts:
+        fcserver:
+          dir: /opt/fadecandy/bin
+          bin: fcserver-rpi
+        led_lights:
+          dir: /opt/leds/measureled
+          bin: measureled.py
+        measure_dh:
+          dir: /opt/leds
+          bin: measure.py
+
+  tasks:
+  - name: install packages
+    apt:
+      name: "{{ item }}"
+      state: present
+    with_items:
+      - vim
+      - git
+      - htop
+      - tmux
+      - ansible
+      - build-essential
+      - python3-dev
+      - ipython3
+      - python3-pip
+      - python3-pandas
+
+  - name: have a tmp mount
+    systemd:
+      name: tmp.mount
+      enabled: yes
+
+  - name: install fadecandy
+    git:
+      repo: https://github.com/scanlime/fadecandy
+      dest: /opt/fadecandy
+      update: no
+      version: dd71f3e615ab72dcb3cca90e6bb292972e7c86d6
+      refspec: '+refs/heads/*:refs/remotes/origin/*'
+
+
+  - name: install services
+    template:
+      src: "../services/{{ item }}.j2"
+      dest: "/etc/systemd/system/{{ item }}"
+      owner: root
+      group: root
+      mode: 0644
+    with_items:
+      - fadecandy-server.service
+      - led-lights.service
+      - measure-dh.service
+      - measure-dh.timer
+
+
+  - name: enable services
+    systemd:
+      state: restarted
+      enabled: yes
+      daemon_reload: yes
+      name: "{{ item }}"
+    with_items:
+      - fadecandy-server.service
+      - led-lights.service
+      - measure-dh.timer
+
+

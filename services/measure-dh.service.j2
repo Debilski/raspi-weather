@@ -1,0 +1,7 @@
+[Unit]
+Description=Measure Temperature and Humidity
+
+[Service]
+ExecStart={{ scripts.measure_dh.bin }}
+WorkingDirectory={{ scripts.measure_dh.dir }}
+Type=oneshot

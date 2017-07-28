@@ -1,0 +1,29 @@
+---
+sudo: required
+dist: stretch
+
+language: python
+python: "3.5"
+
+env:
+  - ANSIBLE_VERSION=latest
+  - ANSIBLE_VERSION=2.2.2.0
+
+branches:
+  only:
+    - master
+
+before_install:
+  - sudo apt-get update -qq
+
+install:
+  # Install Ansible.
+  - if [ "$ANSIBLE_VERSION" = "latest" ]; then pip install ansible; else pip install ansible==$ANSIBLE_VERSION; fi
+  - if [ "$ANSIBLE_VERSION" = "latest" ]; then pip install ansible-lint; fi
+
+script:
+  # Check the role/playbook’s syntax.
+  - ansible-playbook -i localhost, ansible/setup.yaml --syntax-check
+
+  # Do a dry run
+  - ansible-playbook -C -i localhost, ansible/setup.yaml

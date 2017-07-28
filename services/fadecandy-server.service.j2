@@ -1,0 +1,9 @@
+[Unit]
+Description=Starts the fadecandy server
+
+[Service]
+ExecStart={{ scripts.fcserver.bin }}
+WorkingDirectory={{ scripts.fcserver.dir }}
+
+[Install]
+WantedBy=multi-user.target
