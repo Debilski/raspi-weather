@@ -2,7 +2,7 @@
 Description=Starts the fadecandy server
 
 [Service]
-ExecStart={{ scripts.fcserver.bin }}
+ExecStart={{ scripts.fcserver.dir }}/{{ scripts.fcserver.bin }}
 WorkingDirectory={{ scripts.fcserver.dir }}
 
 [Install]

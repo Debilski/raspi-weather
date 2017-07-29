@@ -4,7 +4,7 @@ Requires=fadecandy-server.service
 After=fadecandy-server.service
 
 [Service]
-ExecStart={{ scripts.led_lights.bin }}
+ExecStart={{ scripts.led_lights.dir }}/{{ scripts.led_lights.bin }}
 WorkingDirectory={{ scripts.led_lights.dir }}
 User=pi
 RestartSec=60s
