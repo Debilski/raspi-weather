@@ -6,6 +6,8 @@
 
   vars:
     - scripts:
+        fadecandy:
+          dir: /opt/fadecandy
         fcserver:
           dir: /opt/fadecandy/bin
           bin: fcserver-rpi
@@ -41,7 +43,7 @@
   - name: install fadecandy
     git:
       repo: https://github.com/scanlime/fadecandy
-      dest: /opt/fadecandy
+      dest: {{ fadecandy.dir }}
       update: no
       version: dd71f3e615ab72dcb3cca90e6bb292972e7c86d6
       refspec: '+refs/heads/*:refs/remotes/origin/*'
