@@ -34,11 +34,13 @@
       - ipython3
       - python3-pip
       - python3-pandas
+    sudo: yes
 
   - name: have a tmp mount
     systemd:
       name: tmp.mount
       enabled: yes
+    sudo: yes
 
   - name: install fadecandy
     git:
@@ -47,7 +49,7 @@
       update: no
       version: dd71f3e615ab72dcb3cca90e6bb292972e7c86d6
       refspec: '+refs/heads/*:refs/remotes/origin/*'
-
+    sudo: yes
 
   - name: install services
     template:
@@ -61,7 +63,7 @@
       - led-lights.service
       - measure-dh.service
       - measure-dh.timer
-
+    sudo: yes
 
   - name: enable services
     systemd:
@@ -73,5 +75,6 @@
       - fadecandy-server.service
       - led-lights.service
       - measure-dh.timer
+    sudo: yes
 
 
