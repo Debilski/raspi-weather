@@ -5,9 +5,9 @@
   connection: local
 
   vars:
+    - fadecandy:
+        dir: /opt/fadecandy
     - scripts:
-        fadecandy:
-          dir: /opt/fadecandy
         fcserver:
           dir: /opt/fadecandy/bin
           bin: fcserver-rpi
