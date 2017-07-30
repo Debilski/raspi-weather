@@ -125,6 +125,7 @@
       - fadecandy-server.service
       - led-lights.service
       - measure-dh.timer
+      - piui.service
     become: yes
 
 
