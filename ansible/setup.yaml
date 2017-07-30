@@ -7,7 +7,12 @@
   vars:
     - fadecandy:
         dir: /opt/fadecandy
+    - piui:
+        dir: /opt/piui
     - scripts:
+        piui:
+          dir: /opt/piui
+          bin: piui_demo.py
         fcserver:
           dir: /opt/fadecandy/bin
           bin: fcserver-rpi
