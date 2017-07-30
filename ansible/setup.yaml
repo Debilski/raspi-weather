@@ -34,6 +34,10 @@
       - ipython3
       - python3-pip
       - python3-pandas
+      - nginx
+      - python-cherrypy3
+      - python-zeromq
+      - python3-zeromq
     become: yes
 
   - name: have a tmp mount
@@ -41,6 +45,8 @@
       name: tmp.mount
       enabled: yes
     become: yes
+
+  # TODO: Make access point
 
   - name: install fadecandy
     git:
@@ -50,6 +56,40 @@
       version: dd71f3e615ab72dcb3cca90e6bb292972e7c86d6
       refspec: '+refs/heads/*:refs/remotes/origin/*'
     become: yes
+
+  - name: install piui
+    git:
+      repo: https://github.com/dps/piui.git
+      dest: "{{ piui.dir }}"
+      update: no
+      version: 2a2311255d11a109f2f21a8a8a21066d55fbf6f5
+      refspec: '+refs/heads/*:refs/remotes/origin/*'
+    become: yes
+
+  - name: remove nginx default config
+    file:
+      path: /etc/nginx/sites-enabled/default
+      state: absent
+
+  - name: install piui nginx config
+    copy:
+      src: "../conf/piui"
+      dest: /etc/nginx/sites-available/piui
+      owner: root
+      group: root
+      mode: 0644
+  
+  - name: link nginx config
+    file:
+      src: /etc/nginx/sites-available/piui
+      dest: /etc/nginx/sites-enabled/piui
+      state: link
+
+  - name: reload nginx
+    systemd:
+      state: reloaded
+      enabled: yes
+      name: nginx.service
 
   - name: install services
     template:
@@ -63,6 +103,7 @@
       - led-lights.service
       - measure-dh.service
       - measure-dh.timer
+      - piui.service
     become: yes
 
   - name: enable services
