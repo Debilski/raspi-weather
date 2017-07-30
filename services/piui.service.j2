@@ -1,0 +1,8 @@
+[Unit]
+Description=Measure Temperature and Humidity
+Wants=nginx.service
+
+[Service]
+ExecStart={{ scripts.piui.dir }}/{{ scripts.piui.bin }}
+WorkingDirectory={{ scripts.piui.dir }}
+Type=oneshot

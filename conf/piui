@@ -1,0 +1,15 @@
+access_log off;
+error_log off;
+
+upstream piui {
+        server 127.0.0.1:9999;
+}
+
+server {
+        listen       80;
+        server_name  _;
+
+        location / {
+                proxy_pass http://piui;
+        }
+}
