@@ -36,8 +36,8 @@
       - python3-pandas
       - nginx
       - python-cherrypy3
-      - python-zeromq
-      - python3-zeromq
+      - python-zmq
+      - python3-zmq
     become: yes
 
   - name: have a tmp mount
