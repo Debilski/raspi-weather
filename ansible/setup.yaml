@@ -57,6 +57,10 @@
       mode: 0644
     become: yes
 
+  - name: ifup wlan0
+    command: bash -c "ifdown wlan0 && ifup wlan0"
+    become: yes
+
   - name: make access point
     template:
       src: "../conf/hostapd.conf.j2"
@@ -84,10 +88,6 @@
     with_items:
       - hostapd.service
       - dnsmasq.service
-    become: yes
-
-  - name: ifup wlan0
-    command: bash -c "ifdown wlan0 && ifup wlan0"
     become: yes
 
   - name: have a tmp mount
