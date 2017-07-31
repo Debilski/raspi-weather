@@ -12,7 +12,7 @@
     - scripts:
         piui:
           dir: /home/pi
-          bin: piui.py
+          bin: weather-ui.py
           pypath: /opt/piui
         fcserver:
           dir: /opt/fadecandy/bin
