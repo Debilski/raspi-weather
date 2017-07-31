@@ -7,3 +7,6 @@ Environment=PYTHONPATH={{ scripts.piui.pypath }}
 ExecStart={{ scripts.piui.dir }}/{{ scripts.piui.bin }}
 WorkingDirectory={{ scripts.piui.dir }}
 User=pi
+
+Restart=on-failure
+RestartSec=10
