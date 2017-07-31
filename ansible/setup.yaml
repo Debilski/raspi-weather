@@ -11,8 +11,9 @@
         dir: /opt/piui
     - scripts:
         piui:
-          dir: /opt/piui
-          bin: piui_demo.py
+          dir: /home/pi
+          bin: piui.py
+          pypath: /opt/piui
         fcserver:
           dir: /opt/fadecandy/bin
           bin: fcserver-rpi

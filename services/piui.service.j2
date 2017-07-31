@@ -3,6 +3,7 @@ Description=PIUI
 Wants=nginx.service
 
 [Service]
+Environment=PYTHONPATH={{ scripts.piui.pypath }}
 ExecStart={{ scripts.piui.dir }}/{{ scripts.piui.bin }}
 WorkingDirectory={{ scripts.piui.dir }}
 User=pi
