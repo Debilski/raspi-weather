@@ -43,6 +43,50 @@
       - python-cherrypy3
       - python-zmq
       - python3-zmq
+      - hostapd
+      - dnsmasq
+    become: yes
+
+  - name: configure wlan0
+    copy:
+      src: "../conf/wlan0"
+      dest: /etc/network/interfaces.d/wlan0
+      owner: root
+      group: root
+      mode: 0644
+    become: yes
+
+  - name: make access point
+    template:
+      src: "../conf/hostapd.conf.j2"
+      dest: "/etc/hostapd/hostapd.conf"
+      owner: root
+      group: root
+      mode: 0644
+    become: yes
+
+  - name: configure dns/dhcp
+    copy:
+      src: "../conf/dnsmasq.conf"
+      dest: /etc/dnsmasq.conf
+      owner: root
+      group: root
+      mode: 0644
+    become: yes
+
+  - name: activate hostapd/dnsmasq
+    systemd:
+      state: restarted
+      enabled: yes
+      daemon_reload: yes
+      name: "{{ item }}"
+    with_items:
+      - hostapd.service
+      - dnsmasq.service
+    become: yes
+
+  - name: ifup wlan0
+    command: bash -c "ifdown wlan0 && ifup wlan0"
     become: yes
 
   - name: have a tmp mount
