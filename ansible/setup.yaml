@@ -58,7 +58,8 @@
     become: yes
 
   - name: ifup wlan0
-    command: bash -c "ifdown wlan0 && ifup wlan0"
+    # command: bash -c "ifdown wlan0 && ifup wlan0"
+    command: bash -c "ifup wlan0"
     become: yes
 
   - name: make access point
