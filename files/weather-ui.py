@@ -23,6 +23,13 @@ class DemoPiUi(object):
 
         self._socket = socket
 
+        self.ctx = zmq.Context()
+        self.sock = self.ctx.socket(zmq.PAIR)
+        self.sock.connect(self._socket)
+
+        self.poller = zmq.Poller()
+        self.poller.register(self.sock, zmq.POLLIN)
+
     def page_static(self):
         self.page = self.ui.new_ui_page(title="Static Content", prev_text="Back",
             onprevclick=self.main_menu)
@@ -131,13 +138,6 @@ class DemoPiUi(object):
 
     def main(self):
         self.main_menu()
-
-        self.ctx = zmq.Context()
-        self.sock = self.ctx.socket(zmq.PAIR)
-        self.sock.connect(self._socket)
-
-        self.poller = zmq.Poller()
-        self.poller.register(self.sock, zmq.POLLIN)
 
         self.ui.done()
 
