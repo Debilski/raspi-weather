@@ -1,9 +1,11 @@
-#!/usr/bin/env python3 -u
+#!/usr/bin/python3 -u
 
+import datetime
 import serial
 import sys
 import os
 
+import sqlite3
 import pandas as pd
 
 WDE_DATA_FORMAT = [
@@ -17,15 +19,37 @@ WDE_DATA_FORMAT = [
 # serial port of USB-WDE1
 port = '/dev/ttyUSB0'
 
-# MAIN
+def create_db():
+    conn = sqlite3.connect('weather.db')
+
+    c = conn.cursor()
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS weather
+        (date TEXT, temp REAL, hum INT, wind REAL, rain INT);
+        ''')
+    c.execute('''
+        CREATE INDEX IF NOT EXISTS date_index ON weather(date);
+        ''')
+
+    conn.commit()
+    conn.close()
 
 
 def main():
+    create_db()
+
     # open serial line
     ser = serial.Serial(port, 9600)
     if not ser.isOpen():
         print("Unable to open serial port %s" % port)
         sys.exit(1)
+
+
+    conn = sqlite3.connect('weather.db')
+
+    c = conn.cursor()
+
 
     while True:
         # read line from WDE1
@@ -48,9 +72,22 @@ def main():
 
         frame["TIME"] = pd.to_datetime('now')
 
+
+        temp = frame['TEMP']
+        hum = frame['HUM']
+        wind = frame['WIND']
+        rain = frame['RAIN']
+        c.execute('''
+            INSERT INTO weather
+            VALUES
+            (?, ?, ?, ?, ?)
+        ''', (datetime.datetime.now(), temp, hum, wind, rain))
+        conn.commit()
+
         df = pd.DataFrame([frame], columns=["TIME"] + WDE_DATA_FORMAT)
         print(df)
 
+    conn.close()
 
 if __name__ == '__main__':
     main()

@@ -12,18 +12,18 @@
         dir: /opt/piui
     - scripts:
         piui:
-          dir: /home/pi
+          dir: /opt/leds
           bin: weather-ui.py
           pypath: /opt/piui
         fcserver:
           dir: /opt/fadecandy/bin
           bin: fcserver-rpi
         led_lights:
-          dir: /opt/leds/measureled
-          bin: measureled.py
+          dir: /opt/leds
+          bin: lights.py
         measure_dh:
           dir: /opt/leds
-          bin: measure.py
+          bin: collect-weather-dh.py
 
   tasks:
   - name: install packages
@@ -145,6 +145,19 @@
       state: reloaded
       enabled: yes
       name: nginx.service
+    become: yes
+
+  - name: install scripts
+    copy:
+      src: "../files/{{ item }}"
+      dest: /opt/leds
+      owner: root
+      group: root
+    with_items:
+      - lights.py
+      - opc.py
+      - weather-ui.py
+      - collect-weather-dh.py
     become: yes
 
   - name: install services
