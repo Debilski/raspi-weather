@@ -75,8 +75,8 @@ class DemoPiUi(object):
         self.list = self.page.add_list()
         self.list.add_item("Reload UI", onclick=lambda: os.system("sudo systemctl reload piui.service"))
 
-        self.list.add_item("Reboot", onclick=self.page_reboot)
-        self.list.add_item("Poweroff", onclick=self.page_poweroff)
+        self.list.add_item("Reboot", chevron=True, onclick=self.page_reboot)
+        self.list.add_item("Poweroff", chevron=True, onclick=self.page_poweroff)
 
 #        self.list.add_item("Static Content", chevron=True, onclick=self.page_static)
 #        self.list.add_item("Buttons", chevron=True, onclick=self.page_buttons)
@@ -99,7 +99,7 @@ class DemoPiUi(object):
     def do_reboot(self):
         os.system("sudo systemctl reboot")
 
-    def do_reboot(self):
+    def do_poweroff(self):
         os.system("sudo systemctl poweroff")
 
     def main(self):
