@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """Python Client library for Open Pixel Control
 http://github.com/zestyping/openpixelcontrol
@@ -33,6 +33,7 @@ Recommended use:
 
 """
 
+from collections import namedtuple
 import socket
 import struct
 import sys
@@ -178,4 +179,8 @@ class Client(object):
 
         return True
 
+RGB = namedtuple('RGB', ['r', 'g', 'b'])
 
+def hex_to_rgb(hex):
+    hex_ = hex.lstrip('#')
+    return RGB(*(int(hex_[i:i+2], 16) for i in (0, 2 ,4)))
