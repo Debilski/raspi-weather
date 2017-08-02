@@ -75,6 +75,8 @@ class DemoPiUi(object):
         self.list = self.page.add_list()
         self.list.add_item("Reload UI", onclick=lambda: os.system("sudo systemctl reload piui.service"))
 
+        self.list.add_item("Change Color", onclick=self.page_change_color)
+
         self.list.add_item("Reboot", chevron=True, onclick=self.page_reboot)
         self.list.add_item("Poweroff", chevron=True, onclick=self.page_poweroff)
 
@@ -85,6 +87,31 @@ class DemoPiUi(object):
 #        self.list.add_item("Toggles", chevron=True, onclick=self.page_toggles)
         self.list.add_item("Console!", chevron=True, onclick=self.page_console)
         self.ui.done()
+
+
+    def page_change_color(self):
+        self.page = self.ui.new_ui_page(title="Change Color", prev_text="Back", onprevclick=self.main_menu)
+        self.title = self.page.add_textbox("Buttons!", "h1")
+        self.page.add_element('br')
+        plus = self.page.add_button("Up Button &uarr;", lambda: self.do_change_color(+1, 0, 0))
+        minus = self.page.add_button("Down Button &darr;", lambda: self.do_change_color(-1, 0, 0))
+        self.page.add_element('br')
+        plus = self.page.add_button("Up Button &uarr;", lambda: self.do_change_color(0, +1, 0))
+        minus = self.page.add_button("Down Button &darr;", lambda: self.do_change_color(0, -1, 0))
+        self.page.add_element('br')
+        plus = self.page.add_button("Up Button &uarr;", lambda: self.do_change_color(0, 0, +1))
+        minus = self.page.add_button("Down Button &darr;", lambda: self.do_change_color(0, 0, -1))
+
+
+    def do_change_color(self, r, g, b):
+        msg = { "CHANGE_COLOR": [r, g, b] }
+        self.sock.send_json(msg)
+        evts = self.poller.poll(1000)
+        if not evts:
+            return
+        new_col = self.sock.recv_json()
+        self.title.set_text(str(new_col))
+
 
     def page_reboot(self):
         self.page = self.ui.new_ui_page(title="Reboot", prev_text="Back", onprevclick=self.main_menu)
@@ -109,20 +136,19 @@ class DemoPiUi(object):
         self.sock = self.ctx.socket(zmq.PAIR)
         self.sock.connect(self._socket)
 
+        self.poller = zmq.Poller()
+        self.poller.register(self.sock, zmq.POLLIN)
+
         self.ui.done()
 
     def onupclick(self):
         self.title.set_text("Up ")
-        print "Up"
 
     def ondownclick(self):
         self.title.set_text("Down")
-        print "Down"
 
     def onhelloclick(self):
-        print "onstartclick"
         self.title.set_text("Hello " + self.txt.get_text())
-        print "Start"
 
     def onpicclick(self):
         if self.src == "sunset.png":

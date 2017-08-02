@@ -19,7 +19,7 @@ PIXELS_HUMIDITY = range(29)
 PIXELS_TEMPERATURE = range(30, 59)
 
 CONFIG = {
-
+  "COLOR": opc.hex_to_rgb('#ffcc33')
 }
 
 
@@ -63,6 +63,14 @@ def cache_decorator(f):
         return f.__cache_val
     return wrapper
 
+def parse_msg(msg):
+    if "CHANGE_COLOR" in msg:
+        r, g, b = msg["CHANGE_COLOR"]
+        global CONFIG
+        old_r, old_g, old_b = CONFIG["COLOR"]
+        CONFIG["COLOR"] = (old_r + r, old_g + g, old_b + b)
+        return CONFIG["COLOR"]
+
 
 def init():
     for i in range(10):
@@ -87,7 +95,8 @@ def main(socket):
         if socks and sock in socks and socks[sock] == zmq.POLLIN:
             try:
                 msg = sock.recv_json()
-                parse_msg(msg)
+                res = parse_msg(msg)
+                sock.send_json(res)
             except json.decoder.JSONDecodeError:
                 print("Bad json msg. Ignoring.")
 
@@ -100,7 +109,7 @@ def main(socket):
         frame = [(0, 0, 0)] * numLEDs
 
         for p in (hum_pixels + temp_pixels):
-            frame[p] = opc.hex_to_rgb('#ffcc33')
+            frame[p] = CONFIG["COLOR"]
 
         DO_MENSA = False
         if DO_MENSA:
