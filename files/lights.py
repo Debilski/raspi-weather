@@ -2,7 +2,9 @@
 
 import functools
 import itertools
+import json
 import math
+from collections import namedtuple
 import subprocess
 import time
 
@@ -10,13 +12,32 @@ import zmq
 
 import opc
 
-import Adafruit_DHT as DHT
-
 numLEDs = 512
 client = opc.Client('localhost:7890')
 
 PIXELS_HUMIDITY = range(29)
 PIXELS_TEMPERATURE = range(30, 59)
+
+CONFIG = {
+
+}
+
+
+DHDataRaw = namedtuple('DHDataRaw', ['temp', 'hum', 'wind', 'rain'])
+DHData = namedtuple('DHData', ['temp', 'hum', 'wind', 'rain_deriv'])
+
+def get_closest_data(conn, date):
+    for row in conn.execute('''
+        SELECT * FROM weather
+        ORDER BY ABS( strftime( "%s", date ) - strftime( "%s", ? ) ) ASC
+        ''', (date, )):
+        return row
+
+def get_data_in_timerange(conn, start, end):
+    return list(conn.execute('''
+        SELECT * FROM weather
+        WHERE date BETWEEN ? and ?
+        ''', (start, end)))
 
 
 def set_pixels(pixels, value, min_val, max_val):
@@ -43,22 +64,6 @@ def cache_decorator(f):
     return wrapper
 
 
-@cache_decorator
-def check_usb_port_mensa():
-    if not subprocess.call('grep 1d50 /sys/bus/usb/devices/1-1.2/idVendor', shell=True):
-        return True
-    else:
-        return False
-
-
-@cache_decorator
-def check_usb_port_silent():
-    if not subprocess.call('grep 1d50 /sys/bus/usb/devices/1-1.5/idVendor', shell=True):
-        return True
-    else:
-        return False
-
-
 def init():
     for i in range(10):
         client.put_pixels([(20, 200, 20)] * numLEDs)
@@ -66,43 +71,68 @@ def init():
         client.put_pixels([(0, 0, 0)] * numLEDs)
         time.sleep(0.05)
 
+def main(socket):
+    ctx = zmq.Context()
+    sock = ctx.socket(zmq.PAIR)
+    sock.bind(socket)
 
-init()
+    poller = zmq.Poller()
+    poller.register(sock, zmq.POLLIN)
 
-t = 0
-while True:
-    t += 0.4
+    init()
 
-    humidity, temperature = DHT.read_retry(DHT.DHT11, 4)
+    t = 0
+    while True:
+        socks = dict(poller.poll(timeout=0))
+        if socks and sock in socks and socks[sock] == zmq.POLLIN:
+            try:
+                msg = sock.recv_json()
+                parse_msg(msg)
+            except json.decoder.JSONDecodeError:
+                print("Bad json msg. Ignoring.")
 
-    hum_pixels = list(set_pixels(PIXELS_HUMIDITY, humidity, 0, 100))
-    temp_pixels = list(set_pixels(PIXELS_TEMPERATURE, temperature, -10, 35))
-    frame = [(0, 0, 0)] * numLEDs
+        t += 0.4
 
-    if not check_usb_port_silent():
+        humidity, temperature = 29, 20 # DHT.read_retry(DHT.DHT11, 4)
+
+        hum_pixels = list(set_pixels(PIXELS_HUMIDITY, humidity, 0, 100))
+        temp_pixels = list(set_pixels(PIXELS_TEMPERATURE, temperature, -10, 35))
+        frame = [(0, 0, 0)] * numLEDs
+
         for p in (hum_pixels + temp_pixels):
-            frame[p] = (255, 255, 255)
+            frame[p] = opc.hex_to_rgb('#ffcc33')
 
-    DO_MENSA = check_usb_port_mensa()
-    if DO_MENSA:
-        mensa_pixels = list(set_pixels(range(60), people_in_mensa(), 0, 400))
-        for p in mensa_pixels:
-            oldframe = frame[p]
-            frame[p] = (200, 20, oldframe[2])
+        DO_MENSA = False
+        if DO_MENSA:
+            mensa_pixels = list(set_pixels(range(60), people_in_mensa(), 0, 400))
+            for p in mensa_pixels:
+                oldframe = frame[p]
+                frame[p] = (200, 20, oldframe[2])
 
-    orange = (255, 255, 0)
+        orange = (255, 255, 0)
 
-    h_scaled = humidity / 100
-    orange_val = (orange[0] * h_scaled, orange[1]
-                  * h_scaled, orange[2] * h_scaled)
+        h_scaled = humidity / 100
+        orange_val = (orange[0] * h_scaled, orange[1]
+                    * h_scaled, orange[2] * h_scaled)
 
-    frame[29] = orange_val
+        frame[29] = orange_val
 
-    t_scaled = temperature / (35 + 10)
-    orange_val = (orange[0] * t_scaled, orange[1]
-                  * t_scaled, orange[2] * t_scaled)
+        t_scaled = temperature / (35 + 10)
+        orange_val = (orange[0] * t_scaled, orange[1]
+                    * t_scaled, orange[2] * t_scaled)
 
-    frame[59] = orange_val
+        frame[59] = orange_val
+#        print(frame)
 
-    client.put_pixels(frame)
-    time.sleep(0.05)
+        client.put_pixels(frame)
+        time.sleep(0.05)
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Control the weather')
+    parser.add_argument('socket', metavar='SOCKET', type=str, help='Bind socket')
+
+    args = parser.parse_args()
+    main(args.socket)

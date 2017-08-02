@@ -73,14 +73,34 @@ class DemoPiUi(object):
     def main_menu(self):
         self.page = self.ui.new_ui_page(title="PiUi")
         self.list = self.page.add_list()
-        self.list.add_item("Static Content", chevron=True, onclick=self.page_static)
-        self.list.add_item("Buttons", chevron=True, onclick=self.page_buttons)
-        self.list.add_item("Input", chevron=True, onclick=self.page_input)
-        self.list.add_item("Images", chevron=True, onclick=self.page_images)
-        self.list.add_item("Toggles", chevron=True, onclick=self.page_toggles)
+        self.list.add_item("Reload UI", onclick=lambda: os.system("sudo systemctl reload piui.service"))
+
+        self.list.add_item("Reboot", onclick=self.page_reboot)
+        self.list.add_item("Poweroff", onclick=self.page_poweroff)
+
+#        self.list.add_item("Static Content", chevron=True, onclick=self.page_static)
+#        self.list.add_item("Buttons", chevron=True, onclick=self.page_buttons)
+#        self.list.add_item("Input", chevron=True, onclick=self.page_input)
+#        self.list.add_item("Images", chevron=True, onclick=self.page_images)
+#        self.list.add_item("Toggles", chevron=True, onclick=self.page_toggles)
         self.list.add_item("Console!", chevron=True, onclick=self.page_console)
         self.ui.done()
 
+    def page_reboot(self):
+        self.page = self.ui.new_ui_page(title="Reboot", prev_text="Back", onprevclick=self.main_menu)
+        self.page.add_element('br')
+        button = self.page.add_button("Reboot", self.do_reboot)
+
+    def page_poweroff(self):
+        self.page = self.ui.new_ui_page(title="Poweroff", prev_text="Back", onprevclick=self.main_menu)
+        self.page.add_element('br')
+        button = self.page.add_button("Poweroff", self.do_poweroff)
+
+    def do_reboot(self):
+        os.system("sudo systemctl reboot")
+
+    def do_reboot(self):
+        os.system("sudo systemctl poweroff")
 
     def main(self):
         self.main_menu()
