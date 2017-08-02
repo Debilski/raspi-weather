@@ -136,7 +136,7 @@ class DemoPiUi(object):
         self.title.set_text("Toggled " + what + " " + str(value))
 
 def main(socket):
-  piui = DemoPiUi(sockett)
+  piui = DemoPiUi(socket)
   piui.main()
 
 if __name__ == '__main__':
