@@ -16,10 +16,11 @@ numLEDs = 512
 client = opc.Client('localhost:7890')
 
 PIXELS_HUMIDITY = range(29)
-PIXELS_TEMPERATURE = range(30, 59)
+PIXELS_TEMPERATURE = range(64 * 4 + 30, 64 * 4 + 59)
 
 CONFIG = {
-  "COLOR": opc.hex_to_rgb('#ffcc33')
+  "COLOR": opc.hex_to_rgb('#ffcc33'),
+  "NUM": 10
 }
 
 
@@ -71,6 +72,13 @@ def parse_msg(msg):
         CONFIG["COLOR"] = (old_r + r, old_g + g, old_b + b)
         return CONFIG["COLOR"]
 
+    if "CHANGE_NUM_LEDS" in msg:
+        diff = msg["CHANGE_NUM_LEDS"]
+        global CONFIG
+        old_num = CONFIG["NUM"]
+        CONFIG["NUM"] = old_num + diff
+        return CONFIG["NUM"]
+
 
 def init():
     for i in range(10):
@@ -104,8 +112,10 @@ def main(socket):
 
         humidity, temperature = 29, 20 # DHT.read_retry(DHT.DHT11, 4)
 
-        hum_pixels = list(set_pixels(PIXELS_HUMIDITY, humidity, 0, 100))
-        temp_pixels = list(set_pixels(PIXELS_TEMPERATURE, temperature, -10, 35))
+        #hum_pixels = list(set_pixels(PIXELS_HUMIDITY, humidity, 0, 100))
+        #temp_pixels = list(set_pixels(PIXELS_TEMPERATURE, temperature, -10, 35))
+        hum_pixels = list(set_pixels(PIXELS_HUMIDITY, CONFIG["NUM"], 0, 100))
+        temp_pixels = list(set_pixels(PIXELS_TEMPERATURE, CONFIG["NUM"], 0, 100))
         frame = [(0, 0, 0)] * numLEDs
 
         for p in (hum_pixels + temp_pixels):

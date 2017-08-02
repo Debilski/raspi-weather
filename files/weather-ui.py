@@ -109,9 +109,26 @@ class DemoPiUi(object):
         plus = self.page.add_button("Up Button &uarr;", lambda: self.do_change_color(0, 0, +1))
         minus = self.page.add_button("Down Button &darr;", lambda: self.do_change_color(0, 0, -1))
 
+        self.page.add_element('br')
+        self.page.add_element('br')
+        self.page.add_element('br')
+
+        plus = self.page.add_button("Up Button &uarr;", lambda: self.do_change_num_leds(+1))
+        minus = self.page.add_button("Down Button &darr;", lambda: self.do_change_num_leds(-1))
+
 
     def do_change_color(self, r, g, b):
         msg = { "CHANGE_COLOR": [r, g, b] }
+        self.sock.send_json(msg)
+        evts = self.poller.poll(1000)
+        if not evts:
+            return
+        new_col = self.sock.recv_json()
+        self.title.set_text(str(new_col))
+
+
+    def do_change_num_leds(self, diff):
+        msg = { "CHANGE_NUM_LEDS": diff }
         self.sock.send_json(msg)
         evts = self.poller.poll(1000)
         if not evts:
