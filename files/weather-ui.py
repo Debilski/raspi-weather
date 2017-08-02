@@ -143,7 +143,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='Control the weather')
-    parser.add_argument('socket', metavar='SOCKET', type=str, nargs='1', help='Connection socket')
+    parser.add_argument('socket', metavar='SOCKET', type=str, help='Connection socket')
 
     args = parser.parse_args()
     main(args.socket)
