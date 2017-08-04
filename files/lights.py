@@ -15,14 +15,67 @@ import opc
 numLEDs = 512
 client = opc.Client('localhost:7890')
 
+PIXELS_TOTAL = set(range(2 * 64))
+
 PIXELS_HUMIDITY = range(29)
-PIXELS_TEMPERATURE = range(64 * 4 + 30, 64 * 4 + 59)
+PIXELS_TEMPERATURE = range(64 + 30, 64 + 59)
+
+PIXELS_BASE = {2, 3, 4, 8}
+
 
 CONFIG = {
-  "COLOR": opc.hex_to_rgb('#ffcc33'),
+  "COLOR": (255, 47, 1), # opc.hex_to_rgb('#ffcc33'),
   "NUM": 10
 }
 
+
+def rgb_to_hsv(rgb):
+    r, g, b = rgb
+    MAX = max(r, g, b)
+    MIN = min(r, g, b)
+    if MAX == MIN:
+        h = 0
+    elif MAX == r:
+        h = 60 * (0 + (g - b) / (MAX -  MIN))
+    elif MAX == g:
+        h = 60 * (2 + (b - r) / (MAX -  MIN))
+    elif MAX == b:
+        h = 60 * (4 + (r - g) / (MAX -  MIN))
+    if h < 0:
+        h += 360
+    if MAX == 0:
+        s = 0
+    else:
+        s = (MAX - MIN) / MAX
+    v = MAX
+    return (h, s, v)
+
+def hsv_to_rgb(hsv):
+    h, s, v = hsv
+    h_i = h // 60
+    f = h / 60 - h_i
+    p = v * (1 - s)
+    q = v * (1 - s * f)
+    t = v * (1 - s * (1 - f))
+    if h_i == 0 or h_i == 6:
+        r, g, b = v, t, p
+    elif h_i == 1:
+        r, g, b = q, v, p
+    elif h_i == 2:
+        r, g, b = p, v, t
+    elif h_i == 3:
+        r, g, b = p, q, v
+    elif h_i == 4:
+        r, g, b = t, p, v
+    elif h_i == 5:
+        r, g, b = v, p, q
+    return r, g, b 
+
+
+
+def map_pixels(pixels):
+    fill = [0, 0, 0] * 64 * 4
+    return pixels[0:64] + fill + pixels[64:64*2]
 
 DHDataRaw = namedtuple('DHDataRaw', ['temp', 'hum', 'wind', 'rain'])
 DHData = namedtuple('DHData', ['temp', 'hum', 'wind', 'rain_deriv'])
@@ -82,9 +135,9 @@ def parse_msg(msg):
 
 def init():
     for i in range(10):
-        client.put_pixels([(20, 200, 20)] * numLEDs)
+        client.put_pixels(map_pixels([(20, 200, 20)] * numLEDs))
         time.sleep(0.05)
-        client.put_pixels([(0, 0, 0)] * numLEDs)
+        client.put_pixels(map_pixels([(0, 0, 0)] * numLEDs))
         time.sleep(0.05)
 
 def main(socket):
@@ -143,7 +196,7 @@ def main(socket):
         frame[59] = orange_val
 #        print(frame)
 
-        client.put_pixels(frame)
+        client.put_pixels(map_pixels(frame))
         time.sleep(0.05)
 
 
