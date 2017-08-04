@@ -7,6 +7,7 @@ import time
 
 import zmq
 
+import cherrypy
 from piui import PiUi
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -31,12 +32,11 @@ class DemoPiUi(object):
         self.poller.register(self.sock, zmq.POLLIN)
 
     def page_static(self):
-        self.page = self.ui.new_ui_page(title="Static Content", prev_text="Back",
-            onprevclick=self.main_menu)
+        self.page = self.ui.new_ui_page(title="Static Content", prev_text="Back", onprevclick=self.main_menu)
         self.page.add_textbox("Add a mobile UI to your Raspberry Pi project", "h1")
         self.page.add_element("hr")
-        self.page.add_textbox("You can use any static HTML element " + 
-            "in your UI and <b>regular</b> <i>HTML</i> <u>formatting</u>.", "p")
+        self.page.add_textbox("You can use any static HTML element " +
+                              "in your UI and <b>regular</b> <i>HTML</i> <u>formatting</u>.", "p")
         self.page.add_element("hr")
         self.page.add_textbox("Your python code can update page contents at any time.", "p")
         update = self.page.add_textbox("Like this...", "h2")
@@ -66,12 +66,14 @@ class DemoPiUi(object):
     def page_toggles(self):
         self.page = self.ui.new_ui_page(title="Toggles", prev_text="Back", onprevclick=self.main_menu)
         self.list = self.page.add_list()
-        self.list.add_item("Lights", chevron=False, toggle=True, ontoggle=functools.partial(self.ontoggle, "lights"))
-        self.list.add_item("TV", chevron=False, toggle=True, ontoggle=functools.partial(self.ontoggle, "tv"))
-        self.list.add_item("Microwave", chevron=False, toggle=True, ontoggle=functools.partial(self.ontoggle, "microwave"))
+        self.list.add_item("Lights", chevron=False, toggle=True,
+                           ontoggle=functools.partial(self.ontoggle, "lights"))
+        self.list.add_item("TV", chevron=False, toggle=True,
+                           ontoggle=functools.partial(self.ontoggle, "tv"))
+        self.list.add_item("Microwave", chevron=False, toggle=True,
+                           ontoggle=functools.partial(self.ontoggle, "microwave"))
         self.page.add_element("hr")
         self.title = self.page.add_textbox("Home Appliance Control", "h1")
-        
 
     def page_console(self):
         con = self.ui.console(title="Console", prev_text="Back", onprevclick=self.main_menu)
@@ -95,7 +97,6 @@ class DemoPiUi(object):
         self.list.add_item("Console!", chevron=True, onclick=self.page_console)
         self.ui.done()
 
-
     def page_change_color(self):
         self.page = self.ui.new_ui_page(title="Change Color", prev_text="Back", onprevclick=self.main_menu)
         self.title = self.page.add_textbox("Buttons!", "h1")
@@ -116,26 +117,23 @@ class DemoPiUi(object):
         plus = self.page.add_button("Up Button &uarr;", lambda: self.do_change_num_leds(+1))
         minus = self.page.add_button("Down Button &darr;", lambda: self.do_change_num_leds(-1))
 
-
     def do_change_color(self, r, g, b):
-        msg = { "CHANGE_COLOR": [r, g, b] }
+        msg = {"CHANGE_COLOR": [r, g, b]}
         self.sock.send_json(msg)
         evts = self.poller.poll(1000)
         if not evts:
             return
         new_col = self.sock.recv_json()
         self.title.set_text(str(new_col))
-
 
     def do_change_num_leds(self, diff):
-        msg = { "CHANGE_NUM_LEDS": diff }
+        msg = {"CHANGE_NUM_LEDS": diff}
         self.sock.send_json(msg)
         evts = self.poller.poll(1000)
         if not evts:
             return
         new_col = self.sock.recv_json()
         self.title.set_text(str(new_col))
-
 
     def page_reboot(self):
         self.page = self.ui.new_ui_page(title="Reboot", prev_text="Back", onprevclick=self.main_menu)
@@ -178,11 +176,16 @@ class DemoPiUi(object):
     def ontoggle(self, what, value):
         self.title.set_text("Toggled " + what + " " + str(value))
 
+
 def main(socket):
-  piui = DemoPiUi(socket)
-  piui.main()
+    piui = DemoPiUi(socket)
+    piui.main()
+
 
 if __name__ == '__main__':
+
+    cherrypy.config.update({'engine.autoreload.on': False})
+
     import argparse
 
     parser = argparse.ArgumentParser(description='Control the weather')
@@ -190,4 +193,3 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     main(args.socket)
-
