@@ -101,21 +101,26 @@ class DemoPiUi(object):
         self.page = self.ui.new_ui_page(title="Change Color", prev_text="Back", onprevclick=self.main_menu)
         self.title = self.page.add_textbox("Buttons!", "h1")
         self.page.add_element('br')
-        plus = self.page.add_button("Up Button &uarr;", lambda: self.do_change_color(+1, 0, 0))
-        minus = self.page.add_button("Down Button &darr;", lambda: self.do_change_color(-1, 0, 0))
+        plus = self.page.add_button("R &uarr;", lambda: self.do_change_color(+1, 0, 0))
+        minus = self.page.add_button("R &darr;", lambda: self.do_change_color(-1, 0, 0))
         self.page.add_element('br')
-        plus = self.page.add_button("Up Button &uarr;", lambda: self.do_change_color(0, +1, 0))
-        minus = self.page.add_button("Down Button &darr;", lambda: self.do_change_color(0, -1, 0))
+        plus = self.page.add_button("G &uarr;", lambda: self.do_change_color(0, +1, 0))
+        minus = self.page.add_button("G &darr;", lambda: self.do_change_color(0, -1, 0))
         self.page.add_element('br')
-        plus = self.page.add_button("Up Button &uarr;", lambda: self.do_change_color(0, 0, +1))
-        minus = self.page.add_button("Down Button &darr;", lambda: self.do_change_color(0, 0, -1))
+        plus = self.page.add_button("B &uarr;", lambda: self.do_change_color(0, 0, +1))
+        minus = self.page.add_button("B &darr;", lambda: self.do_change_color(0, 0, -1))
 
         self.page.add_element('br')
         self.page.add_element('br')
         self.page.add_element('br')
 
-        plus = self.page.add_button("Up Button &uarr;", lambda: self.do_change_num_leds(+1))
-        minus = self.page.add_button("Down Button &darr;", lambda: self.do_change_num_leds(-1))
+        plus = self.page.add_button("Num &uarr;", lambda: self.do_change_num_leds(+1))
+        minus = self.page.add_button("Num &darr;", lambda: self.do_change_num_leds(-1))
+
+        self.page.add_element('br')
+
+        plus = self.page.add_button("Dim &uarr;", lambda: self.do_change_dim_leds(1.1))
+        minus = self.page.add_button("Dim &darr;", lambda: self.do_change_dim_leds(1/1.1))
 
     def do_change_color(self, r, g, b):
         msg = {"CHANGE_COLOR": [r, g, b]}
@@ -134,6 +139,16 @@ class DemoPiUi(object):
             return
         new_col = self.sock.recv_json()
         self.title.set_text(str(new_col))
+
+    def do_change_dim_leds(self, mult):
+        msg = {"DIM_LEDS": mult}
+        self.sock.send_json(msg)
+        evts = self.poller.poll(1000)
+        if not evts:
+            return
+        new_col = self.sock.recv_json()
+        self.title.set_text(str(new_col))
+
 
     def page_reboot(self):
         self.page = self.ui.new_ui_page(title="Reboot", prev_text="Back", onprevclick=self.main_menu)

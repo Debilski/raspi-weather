@@ -39,6 +39,10 @@ except (FileNotFoundError, ValueError) as e:
 
 def rgb_to_hsv(rgb):
     r, g, b = rgb
+    r = max(0, min(255, r))
+    g = max(0, min(255, g))
+    b = max(0, min(255, b))
+
     MAX = max(r, g, b)
     MIN = min(r, g, b)
     if MAX == MIN:
@@ -77,7 +81,15 @@ def hsv_to_rgb(hsv):
         r, g, b = t, p, v
     elif h_i == 5:
         r, g, b = v, p, q
+
+    r = max(0, min(255, r))
+    g = max(0, min(255, g))
+    b = max(0, min(255, b))
     return r, g, b 
+
+def dim_pixel(rgb, multiplier):
+    h, s, v = rgb_to_hsv(rgb)
+    return hsv_to_rgb((h, s, v * multiplier))
 
 
 
@@ -138,9 +150,17 @@ def parse_msg(msg):
         CONFIG["NUM"] = old_num + diff
         return CONFIG["NUM"]
 
+    if "DIM_LEDS" in msg:
+        mult = msg["DIM_LEDS"]
+        rgb = CONFIG["COLOR"]
+        CONFIG["COLOR"] = dim_pixel(rgb, mult)
+        return CONFIG["COLOR"]
+
+
     if "SAVE_CONFIG" in msg:
         with open(LIGHTS_CONFIG_FILE, 'w') as outfile:
             json.dump(jsonData, outfile, sort_keys = True, indent = 4, ensure_ascii = False)
+
 
 
 def init():
