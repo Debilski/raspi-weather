@@ -1,5 +1,7 @@
 [Unit]
 Description=Measure Temperature and Humidity
+Wants=dev-ttyUSB0.device
+After=dev-ttyUSB0.device
 
 [Service]
 ExecStart={{ scripts.measure_dh.dir }}/{{ scripts.measure_dh.bin }}
