@@ -119,8 +119,8 @@ class DemoPiUi(object):
 
         self.page.add_element('br')
 
-        plus = self.page.add_button("Dim &uarr;", lambda: self.do_change_dim_leds(1.1))
-        minus = self.page.add_button("Dim &darr;", lambda: self.do_change_dim_leds(1/1.1))
+        plus = self.page.add_button("Dim &uarr;", lambda: self.do_change_dim_leds(10))
+        minus = self.page.add_button("Dim &darr;", lambda: self.do_change_dim_leds(-10))
 
     def do_change_color(self, r, g, b):
         msg = {"CHANGE_COLOR": [r, g, b]}

@@ -64,6 +64,8 @@ def rgb_to_hsv(rgb):
 
 def hsv_to_rgb(hsv):
     h, s, v = hsv
+    v = max(0, min(255, v))
+
     h_i = h // 60
     f = h / 60 - h_i
     p = v * (1 - s)
@@ -87,10 +89,9 @@ def hsv_to_rgb(hsv):
     b = max(0, min(255, b))
     return r, g, b 
 
-def dim_pixel(rgb, multiplier):
+def dim_pixel(rgb, delt_v):
     h, s, v = rgb_to_hsv(rgb)
-    return hsv_to_rgb((h, s, v * multiplier))
-
+    return hsv_to_rgb((h, s, v + delt_v))
 
 
 def map_pixels(pixels):
