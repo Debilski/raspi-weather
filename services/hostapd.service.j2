@@ -1,0 +1,15 @@
+
+[Unit]
+Description=LSB: Advanced IEEE 802.11 management daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/hostapd -P /run/hostapd.pid /etc/hostapd/hostapd.conf
+PIDFile=/run/hostapd.pid
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
