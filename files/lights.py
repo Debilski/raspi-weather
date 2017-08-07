@@ -22,11 +22,19 @@ PIXELS_TEMPERATURE = range(64 + 30, 64 + 59)
 
 PIXELS_BASE = {2, 3, 4, 8}
 
+LIGHTS_CONFIG_FILE = 'lights-config.json'
 
-CONFIG = {
-  "COLOR": (255, 47, 1), # opc.hex_to_rgb('#ffcc33'),
-  "NUM": 10
-}
+try:
+    with open(LIGHTS_CONFIG_FILE, 'r') as cfg:
+        CONFIG = json.load(cfg)
+except (FileNotFoundError, ValueError) as e:
+    print(e)
+    print("Using default values for config")
+
+    CONFIG = {
+        "COLOR": (255, 47, 1), # opc.hex_to_rgb('#ffcc33'),
+        "NUM": 10
+    }
 
 
 def rgb_to_hsv(rgb):
@@ -129,6 +137,10 @@ def parse_msg(msg):
         old_num = CONFIG["NUM"]
         CONFIG["NUM"] = old_num + diff
         return CONFIG["NUM"]
+
+    if "SAVE_CONFIG" in msg:
+        with open(LIGHTS_CONFIG_FILE, 'w') as outfile:
+            json.dump(jsonData, outfile, sort_keys = True, indent = 4, ensure_ascii = False)
 
 
 def init():
