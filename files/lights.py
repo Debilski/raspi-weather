@@ -5,10 +5,12 @@ import itertools
 import json
 import math
 from collections import namedtuple
+import random
 import subprocess
 import time
 
 import zmq
+import numpy
 
 import opc
 
@@ -33,7 +35,8 @@ except (FileNotFoundError, ValueError) as e:
 
     CONFIG = {
         "COLOR": (255, 47, 1), # opc.hex_to_rgb('#ffcc33'),
-        "NUM": 10
+        "NUM": 20,
+        "WIND_FACTOR": 0.1,
     }
 
 
@@ -205,10 +208,16 @@ def main(socket):
         #temp_pixels = list(set_pixels(PIXELS_TEMPERATURE, temperature, -10, 35))
         hum_pixels = list(set_pixels(PIXELS_HUMIDITY, CONFIG["NUM"], 0, 100))
         temp_pixels = list(set_pixels(PIXELS_TEMPERATURE, CONFIG["NUM"], 0, 100))
+
+#        base_pixels 
+
         frame = [(0, 0, 0)] * numLEDs
 
         for p in (hum_pixels + temp_pixels):
-            frame[p] = CONFIG["COLOR"]
+            col = CONFIG["COLOR"]
+            #col = dim_pixel(col, random.randint(-40, 10))
+            col = dim_percentage(col, random.uniform(0.8, 1.1))
+            frame[p] = col
 
         DO_MENSA = False
         if DO_MENSA:
