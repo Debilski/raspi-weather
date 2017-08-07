@@ -120,14 +120,12 @@ def cache_decorator(f):
 def parse_msg(msg):
     if "CHANGE_COLOR" in msg:
         r, g, b = msg["CHANGE_COLOR"]
-        global CONFIG
         old_r, old_g, old_b = CONFIG["COLOR"]
         CONFIG["COLOR"] = (old_r + r, old_g + g, old_b + b)
         return CONFIG["COLOR"]
 
     if "CHANGE_NUM_LEDS" in msg:
         diff = msg["CHANGE_NUM_LEDS"]
-        global CONFIG
         old_num = CONFIG["NUM"]
         CONFIG["NUM"] = old_num + diff
         return CONFIG["NUM"]
