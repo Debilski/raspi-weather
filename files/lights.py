@@ -95,6 +95,9 @@ def dim_pixel(rgb, delt_v):
         return rgb
     return hsv_to_rgb((h, s, v + delt_v))
 
+def dim_percentage(rgb, factor):
+    h, s, v = rgb_to_hsv(rgb)
+    return hsv_to_rgb((h, s, v * factor))
 
 def map_pixels(pixels):
     fill = [(0, 0, 0)] * 64 * 4
