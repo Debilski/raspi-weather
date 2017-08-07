@@ -74,7 +74,7 @@ def hsv_to_rgb(hsv):
 
 
 def map_pixels(pixels):
-    fill = [0, 0, 0] * 64 * 4
+    fill = [(0, 0, 0)] * 64 * 4
     return pixels[0:64] + fill + pixels[64:64*2]
 
 DHDataRaw = namedtuple('DHDataRaw', ['temp', 'hum', 'wind', 'rain'])
