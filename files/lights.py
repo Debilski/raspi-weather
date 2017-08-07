@@ -91,6 +91,8 @@ def hsv_to_rgb(hsv):
 
 def dim_pixel(rgb, delt_v):
     h, s, v = rgb_to_hsv(rgb)
+    if max(rgb) + delt_v <= 0:
+        return rgb
     return hsv_to_rgb((h, s, v + delt_v))
 
 
