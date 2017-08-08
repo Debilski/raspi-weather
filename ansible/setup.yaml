@@ -45,6 +45,7 @@
       - python-cherrypy3
       - python-zmq
       - python3-zmq
+      - python3-pysolar
       - hostapd
       - dnsmasq
     become: yes
