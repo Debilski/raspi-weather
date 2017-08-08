@@ -11,10 +11,7 @@ import subprocess
 import time
 
 import numpy as np
-try:
-    import pysolar
-except ImportError:
-    import Pysolar as pysolar
+import pysolar
 
 import zmq
 

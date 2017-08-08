@@ -45,10 +45,12 @@
       - python-cherrypy3
       - python-zmq
       - python3-zmq
-      - python3-pysolar
       - hostapd
       - dnsmasq
     become: yes
+
+  - name: Install pysolar
+    command: pip3 install pysolar
 
   - name: configure wlan0
     copy:
