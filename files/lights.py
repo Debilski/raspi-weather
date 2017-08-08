@@ -10,7 +10,7 @@ import subprocess
 import time
 
 import zmq
-import numpy
+import numpy as np
 
 import opc
 
@@ -104,7 +104,7 @@ def dim_percentage(rgb, factor):
 
 def map_pixels(pixels):
     fill = [(0, 0, 0)] * 64 * 4
-    return pixels[0:64] + fill + pixels[64:64*2]
+    return pixels[0:64].tolist() + fill + pixels[64:64*2].tolist()
 
 DHDataRaw = namedtuple('DHDataRaw', ['temp', 'hum', 'wind', 'rain'])
 DHData = namedtuple('DHData', ['temp', 'hum', 'wind', 'rain_deriv'])
@@ -123,14 +123,19 @@ def get_data_in_timerange(conn, start, end):
         ''', (start, end)))
 
 
-def set_pixels(pixels, value, min_val, max_val):
+def set_density(pixels, value, min_val, max_val):
     l = len(pixels)
     val_norm = value / (max_val - min_val)
     if not val_norm > 0:
         val_norm = 0
     if val_norm > 1:
         val_norm = 1
-    return pixels[: int(val_norm * l)]
+    full_pixels = int(val_norm * l)
+    rest = (val_norm * l) - full_pixels
+    scaling_frame = np.zeros((numLEDs, 1))
+    scaling_frame[pixels[:full_pixels]] = 1
+    scaling_frame[pixels[full_pixels]] = rest
+    return scaling_frame
 
 
 def cache_decorator(f):
@@ -174,9 +179,11 @@ def parse_msg(msg):
 
 def init():
     for i in range(10):
-        client.put_pixels(map_pixels([(20, 200, 20)] * numLEDs))
+        frame = np.ones((numLEDs, 3)) * (20, 200, 20)
+        client.put_pixels(map_pixels(frame))
         time.sleep(0.05)
-        client.put_pixels(map_pixels([(0, 0, 0)] * numLEDs))
+        frame = np.zeros((numLEDs, 3))
+        client.put_pixels(map_pixels(frame))
         time.sleep(0.05)
 
 def main(socket):
@@ -191,7 +198,7 @@ def main(socket):
 
     t = 0
     while True:
-        socks = dict(poller.poll(timeout=0))
+        socks = dict(poller.poll(timeout=100))
         if socks and sock in socks and socks[sock] == zmq.POLLIN:
             try:
                 msg = sock.recv_json()
@@ -206,17 +213,27 @@ def main(socket):
 
         #hum_pixels = list(set_pixels(PIXELS_HUMIDITY, humidity, 0, 100))
         #temp_pixels = list(set_pixels(PIXELS_TEMPERATURE, temperature, -10, 35))
-        hum_pixels = list(set_pixels(PIXELS_HUMIDITY, CONFIG["NUM"], 0, 100))
-        temp_pixels = list(set_pixels(PIXELS_TEMPERATURE, CONFIG["NUM"], 0, 100))
+        hum_pixels_dens = set_density(PIXELS_HUMIDITY, CONFIG["NUM"], 0, 100)
+        temp_pixels_dens = set_density(PIXELS_TEMPERATURE, CONFIG["NUM"], 0, 100)
 
 #        base_pixels 
 
         frame = [(0, 0, 0)] * numLEDs
 
-        for p in (hum_pixels + temp_pixels):
+        frame = np.zeros((numLEDs, 3))
+
+        hum_frame = np.ones((numLEDs, 3)) * CONFIG["COLOR"]
+        temp_frame = np.ones((numLEDs, 3)) * CONFIG["COLOR"]
+
+        hum_frame *= hum_pixels_dens
+        temp_frame *= temp_pixels_dens
+
+        combined_frame = hum_pixels_dens + temp_pixels_dens
+
+        for p in (list(PIXELS_HUMIDITY) + list(PIXELS_TEMPERATURE)):
             col = CONFIG["COLOR"]
             #col = dim_pixel(col, random.randint(-40, 10))
-            col = dim_percentage(col, random.uniform(0.8, 1.1))
+            col = dim_percentage(col, random.uniform(0.8, 1.1) * combined_frame[p])
             frame[p] = col
 
         DO_MENSA = False
