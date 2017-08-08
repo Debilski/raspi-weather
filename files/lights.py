@@ -25,6 +25,7 @@ PIXELS_TOTAL = set(range(2 * 64))
 SUN_PIXELS_A = range(29)
 SUN_PIXELS_B = range(64 + 30, 64 + 59)
 
+
 PIXELS_BASE = {2, 3, 4, 8}
 
 LIGHTS_CONFIG_FILE = 'lights-config.json'
@@ -190,6 +191,13 @@ def parse_msg(msg):
         CONFIG["ADAPTED_TIME_START"] = datetime.datetime.now()
         CONFIG["ADAPTED_TIME_END"] = datetime.datetime.now() + datetime.timedelta(seconds=delta)
 
+    if "WIND_FACTOR" in msg:
+        wind_delta = msg["WIND_FACTOR"]
+        CONFIG["WIND_FACTOR"] = CONFIG["WIND_FACTOR"] + wind_delta
+        if CONFIG["WIND_FACTOR"] < 0:
+            CONFIG["WIND_FACTOR"] = 0
+        return CONFIG["WIND_FACTOR"]
+
 
 def adapt_date(range_start, range_end):
     if not CONFIG["ADAPTED_TIME_END"]:
@@ -229,7 +237,7 @@ def main(socket):
 
     t = 0
     while True:
-        socks = dict(poller.poll(timeout=1000))
+        socks = dict(poller.poll(timeout=100))
         if socks and sock in socks and socks[sock] == zmq.POLLIN:
             try:
                 msg = sock.recv_json()
@@ -252,7 +260,7 @@ def main(socket):
         )
 
         adapted_date = adapt_date(yesterday_sunrise, yesterday_sunset)
-        print(adapted_date)
+#        print(adapted_date)
 
         sun_altitude = pysolar.solar.get_altitude(
             latitude_deg=CONFIG["LATITUDE_DEG"],
@@ -275,7 +283,7 @@ def main(socket):
         for p in (list(SUN_PIXELS_A) + list(SUN_PIXELS_B)):
             col = CONFIG["COLOR"]
             #col = dim_pixel(col, random.randint(-40, 10))
-            col = dim_percentage(col, random.uniform(0.8, 1.1) * combined_frame[p])
+            col = dim_percentage(col, random.uniform(0.8, 1.1) * combined_frame[p] * (1 + CONFIG["WIND_FACTOR"]))
             frame[p] = col
 
         client.put_pixels(map_pixels(frame))

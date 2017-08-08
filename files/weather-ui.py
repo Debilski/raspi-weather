@@ -122,6 +122,11 @@ class DemoPiUi(object):
         plus = self.page.add_button("Dim &uarr;", lambda: self.do_change_dim_leds(8))
         minus = self.page.add_button("Dim &darr;", lambda: self.do_change_dim_leds(-8))
 
+        self.page.add_element('br')
+
+        plus = self.page.add_button("Wind &uarr;", lambda: self.do_change_wind(+0.1))
+        minus = self.page.add_button("Wind &darr;", lambda: self.do_change_wind(-0.1))
+
     def do_change_color(self, r, g, b):
         msg = {"CHANGE_COLOR": [r, g, b]}
         self.sock.send_json(msg)
@@ -149,6 +154,14 @@ class DemoPiUi(object):
         new_col = self.sock.recv_json()
         self.title.set_text(str(new_col))
 
+    def do_change_wind(self, delt):
+        msg = {"WIND_FACTOR": delt}
+        self.sock.send_json(msg)
+        evts = self.poller.poll(1000)
+        if not evts:
+            return
+        new_col = self.sock.recv_json()
+        self.title.set_text(str(new_col))
 
     def page_reboot(self):
         self.page = self.ui.new_ui_page(title="Reboot", prev_text="Back", onprevclick=self.main_menu)
