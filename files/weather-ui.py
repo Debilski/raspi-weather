@@ -127,6 +127,9 @@ class DemoPiUi(object):
         plus = self.page.add_button("Wind &uarr;", lambda: self.do_change_wind(+0.1))
         minus = self.page.add_button("Wind &darr;", lambda: self.do_change_wind(-0.1))
 
+        self.page.add_element('br')
+        fast = self.page.add_button("Fast &darr;", lambda: self.do_show_yesterday(30))
+
     def do_change_color(self, r, g, b):
         msg = {"CHANGE_COLOR": [r, g, b]}
         self.sock.send_json(msg)
@@ -156,6 +159,15 @@ class DemoPiUi(object):
 
     def do_change_wind(self, delt):
         msg = {"WIND_FACTOR": delt}
+        self.sock.send_json(msg)
+        evts = self.poller.poll(1000)
+        if not evts:
+            return
+        new_col = self.sock.recv_json()
+        self.title.set_text(str(new_col))
+
+    def do_show_yesterday(self, delt):
+        msg = {"START_ADAPT": delt}
         self.sock.send_json(msg)
         evts = self.poller.poll(1000)
         if not evts:

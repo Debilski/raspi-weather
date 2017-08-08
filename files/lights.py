@@ -283,7 +283,7 @@ def main(socket):
         for p in (list(SUN_PIXELS_A) + list(SUN_PIXELS_B)):
             col = CONFIG["COLOR"]
             #col = dim_pixel(col, random.randint(-40, 10))
-            col = dim_percentage(col, random.uniform(0.8, 1.1) * combined_frame[p] * (1 + CONFIG["WIND_FACTOR"]))
+            col = dim_percentage(col, random.uniform(0.9 - CONFIG["WIND_FACTOR"], 1.1) * combined_frame[p])
             frame[p] = col
 
         client.put_pixels(map_pixels(frame))
