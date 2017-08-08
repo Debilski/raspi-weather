@@ -128,6 +128,11 @@ class DemoPiUi(object):
         minus = self.page.add_button("Wind &darr;", lambda: self.do_change_wind(-0.1))
 
         self.page.add_element('br')
+
+        plus = self.page.add_button("Rain &uarr;", lambda: self.do_change_rain(+0.05))
+        minus = self.page.add_button("Rain &darr;", lambda: self.do_change_rain(-0.05))
+
+        self.page.add_element('br')
         fast = self.page.add_button("Fast &darr;", lambda: self.do_show_yesterday(30))
 
     def do_change_color(self, r, g, b):
@@ -159,6 +164,15 @@ class DemoPiUi(object):
 
     def do_change_wind(self, delt):
         msg = {"WIND_FACTOR": delt}
+        self.sock.send_json(msg)
+        evts = self.poller.poll(1000)
+        if not evts:
+            return
+        new_col = self.sock.recv_json()
+        self.title.set_text(str(new_col))
+
+    def do_change_rain(self, delt):
+        msg = {"RAIN_FACTOR": delt}
         self.sock.send_json(msg)
         evts = self.poller.poll(1000)
         if not evts:

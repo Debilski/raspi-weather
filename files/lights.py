@@ -22,7 +22,10 @@ client = opc.Client('localhost:7890')
 
 PIXELS_TOTAL = set(range(2 * 64))
 
-SUN_PIXELS_A = range(29)
+BASE_PIXELS_A = range(6, 6 + 4)
+BASE_PIXELS_B = range(64 + 10, 64 + 10 + 4)
+
+SUN_PIXELS_A = range(6 + 4, 6 + 4 + 29)
 SUN_PIXELS_B = range(64 + 30, 64 + 59)
 
 
@@ -44,7 +47,8 @@ except (FileNotFoundError, ValueError) as e:
         "ADAPTED_TIME_START": None,
         "ADAPTED_TIME_END": None,
 
-        "COLOR": (255, 47, 1), # opc.hex_to_rgb('#ffcc33'),
+        "COLOR": (255, 47, 1),
+        "SUN_COLOR": opc.hex_to_rgb("#ffcc00"),
         "NUM": 20,
         "WIND_FACTOR": 0.1,
     }
@@ -198,6 +202,15 @@ def parse_msg(msg):
             CONFIG["WIND_FACTOR"] = 0
         return CONFIG["WIND_FACTOR"]
 
+    if "RAIN_FACTOR" in msg:
+        rain_delta = msg["RAIN_FACTOR"]
+        CONFIG["RAIN_FACTOR"] = CONFIG["RAIN_FACTOR"] + rain_delta
+        if CONFIG["RAIN_FACTOR"] < 0:
+            CONFIG["RAIN_FACTOR"] = 0
+        if CONFIG["RAIN_FACTOR"] > 1:
+            CONFIG["RAIN_FACTOR"] = 1
+        return CONFIG["RAIN_FACTOR"]
+
 
 def adapt_date(range_start, range_end):
     if not CONFIG["ADAPTED_TIME_END"]:
@@ -275,16 +288,33 @@ def main(socket):
 
         frame = np.zeros((numLEDs, 3))
 
-        sun_a_frame = np.ones((numLEDs, 3)) * CONFIG["COLOR"]# * sun_pixels_a_dens
-        sun_b_frame = np.ones((numLEDs, 3)) * CONFIG["COLOR"]# * sun_pixels_b_dens
+        sun_a_frame = np.ones((numLEDs, 3)) * CONFIG["SUN_COLOR"]# * sun_pixels_a_dens
+        sun_b_frame = np.ones((numLEDs, 3)) * CONFIG["SUN_COLOR"]# * sun_pixels_b_dens
 
         combined_frame = sun_pixels_a_dens + sun_pixels_b_dens
 
-        for p in (list(SUN_PIXELS_A) + list(SUN_PIXELS_B)):
+        for p in (list(BASE_PIXELS_A) + list(BASE_PIXELS_B)):
             col = CONFIG["COLOR"]
+            #col = dim_pixel(col, random.randint(-40, 10))
+            col = dim_percentage(col, random.uniform(0.9 - CONFIG["WIND_FACTOR"], 1.1))
+            frame[p] = col
+
+        for p in (list(SUN_PIXELS_A) + list(SUN_PIXELS_B)):
+            col = CONFIG["SUN_COLOR"]
             #col = dim_pixel(col, random.randint(-40, 10))
             col = dim_percentage(col, random.uniform(0.9 - CONFIG["WIND_FACTOR"], 1.1) * combined_frame[p])
             frame[p] = col
+
+        all_pixels = list(range(3, 60)) + list(range(64 + 3, 64 + 60))
+        for p in (list(BASE_PIXELS_A) + list(BASE_PIXELS_B) + list(SUN_PIXELS_A) + list(SUN_PIXELS_B)):
+            # iterate and swap with a chance of 0.1 with another random pixel:
+            if random.random() <= CONFIG["RAIN_FACTOR"]:
+                rand_pix = random.choice(all_pixels)
+                c1 = frame[p].copy()
+                c2 = frame[rand_pix].copy()
+                frame[p] = c2
+                frame[rand_pix] = c1
+
 
         client.put_pixels(map_pixels(frame))
         time.sleep(0.05)
