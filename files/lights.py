@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import datetime
 import functools
 import itertools
 import json
@@ -9,8 +10,9 @@ import random
 import subprocess
 import time
 
-import zmq
 import numpy as np
+import pysolar
+import zmq
 
 import opc
 
@@ -19,8 +21,8 @@ client = opc.Client('localhost:7890')
 
 PIXELS_TOTAL = set(range(2 * 64))
 
-PIXELS_HUMIDITY = range(29)
-PIXELS_TEMPERATURE = range(64 + 30, 64 + 59)
+SUN_PIXELS_A = range(29)
+SUN_PIXELS_B = range(64 + 30, 64 + 59)
 
 PIXELS_BASE = {2, 3, 4, 8}
 
@@ -34,6 +36,12 @@ except (FileNotFoundError, ValueError) as e:
     print("Using default values for config")
 
     CONFIG = {
+        "LATITUDE_DEG": 52.52,
+        "LONGITUDE_DEG": 13.41,
+
+        "ADAPTED_TIME_START": None,
+        "ADAPTED_TIME_END": None,
+
         "COLOR": (255, 47, 1), # opc.hex_to_rgb('#ffcc33'),
         "NUM": 20,
         "WIND_FACTOR": 0.1,
@@ -124,7 +132,9 @@ def get_data_in_timerange(conn, start, end):
 
 
 def set_density(pixels, value, min_val, max_val):
-    l = len(pixels)
+    l = len(pixels) - 1
+    if l < 0:
+        l = 0
     val_norm = value / (max_val - min_val)
     if not val_norm > 0:
         val_norm = 0
@@ -170,11 +180,31 @@ def parse_msg(msg):
         CONFIG["COLOR"] = dim_pixel(rgb, mult)
         return CONFIG["COLOR"]
 
-
     if "SAVE_CONFIG" in msg:
         with open(LIGHTS_CONFIG_FILE, 'w') as outfile:
-            json.dump(jsonData, outfile, sort_keys = True, indent = 4, ensure_ascii = False)
+            json.dump(jsonData, outfile, sort_keys=True, indent=4, ensure_ascii=False)
 
+    if "START_ADAPT" in msg:
+        delta = msg["START_ADAPT"]
+        CONFIG["ADAPTED_TIME_START"] = datetime.datetime.now()
+        CONFIG["ADAPTED_TIME_END"] = datetime.datetime.now() + datetime.timedelta(seconds=delta)
+
+
+def adapt_date(range_start, range_end):
+    if not CONFIG["ADAPTED_TIME_END"]:
+        return datetime.datetime.now()
+    if not CONFIG["ADAPTED_TIME_START"]:
+        return datetime.datetime.now()
+
+    if datetime.datetime.now() > CONFIG["ADAPTED_TIME_END"]:
+        CONFIG["ADAPTED_TIME_END"] = None
+        CONFIG["ADAPTED_TIME_START"] = None
+        return datetime.datetime.now()
+
+    delta_orig = range_end - range_start
+    delta_adapt = CONFIG["ADAPTED_TIME_END"] - CONFIG["ADAPTED_TIME_START"]
+    percent_in = (datetime.datetime.now() - CONFIG["ADAPTED_TIME_START"]) / delta_adapt
+    return range_start + percent_in * delta_orig
 
 
 def init():
@@ -198,10 +228,11 @@ def main(socket):
 
     t = 0
     while True:
-        socks = dict(poller.poll(timeout=100))
+        socks = dict(poller.poll(timeout=1000))
         if socks and sock in socks and socks[sock] == zmq.POLLIN:
             try:
                 msg = sock.recv_json()
+                print("Received msg", msg)
                 res = parse_msg(msg)
                 sock.send_json(res)
             except json.decoder.JSONDecodeError:
@@ -211,52 +242,40 @@ def main(socket):
 
         humidity, temperature = 29, 20 # DHT.read_retry(DHT.DHT11, 4)
 
-        #hum_pixels = list(set_pixels(PIXELS_HUMIDITY, humidity, 0, 100))
-        #temp_pixels = list(set_pixels(PIXELS_TEMPERATURE, temperature, -10, 35))
-        hum_pixels_dens = set_density(PIXELS_HUMIDITY, CONFIG["NUM"], 0, 100)
-        temp_pixels_dens = set_density(PIXELS_TEMPERATURE, CONFIG["NUM"], 0, 100)
+        # yesterday is the day that is more than 28 hours ago …
+        yesterday = datetime.datetime.now() - datetime.timedelta(hours=28)
+        yesterday_sunrise, yesterday_sunset = pysolar.util.get_sunrise_sunset(
+            latitude_deg=CONFIG["LATITUDE_DEG"],
+            longitude_deg=CONFIG["LONGITUDE_DEG"],
+            when=yesterday
+        )
 
-#        base_pixels 
+        adapted_date = adapt_date(yesterday_sunrise, yesterday_sunset)
+        print(adapted_date)
+
+        sun_altitude = pysolar.solar.get_altitude(
+            latitude_deg=CONFIG["LATITUDE_DEG"],
+            longitude_deg=CONFIG["LONGITUDE_DEG"],
+            when=adapted_date
+        )
+
+        sun_pixels_a_dens = set_density(SUN_PIXELS_A, sun_altitude, 0, 90)
+        sun_pixels_b_dens = set_density(SUN_PIXELS_B, sun_altitude, 0, 90)
 
         frame = [(0, 0, 0)] * numLEDs
 
         frame = np.zeros((numLEDs, 3))
 
-        hum_frame = np.ones((numLEDs, 3)) * CONFIG["COLOR"]
-        temp_frame = np.ones((numLEDs, 3)) * CONFIG["COLOR"]
+        sun_a_frame = np.ones((numLEDs, 3)) * CONFIG["COLOR"]# * sun_pixels_a_dens
+        sun_b_frame = np.ones((numLEDs, 3)) * CONFIG["COLOR"]# * sun_pixels_b_dens
 
-        hum_frame *= hum_pixels_dens
-        temp_frame *= temp_pixels_dens
+        combined_frame = sun_pixels_a_dens + sun_pixels_b_dens
 
-        combined_frame = hum_pixels_dens + temp_pixels_dens
-
-        for p in (list(PIXELS_HUMIDITY) + list(PIXELS_TEMPERATURE)):
+        for p in (list(SUN_PIXELS_A) + list(SUN_PIXELS_B)):
             col = CONFIG["COLOR"]
             #col = dim_pixel(col, random.randint(-40, 10))
             col = dim_percentage(col, random.uniform(0.8, 1.1) * combined_frame[p])
             frame[p] = col
-
-        DO_MENSA = False
-        if DO_MENSA:
-            mensa_pixels = list(set_pixels(range(60), people_in_mensa(), 0, 400))
-            for p in mensa_pixels:
-                oldframe = frame[p]
-                frame[p] = (200, 20, oldframe[2])
-
-        orange = (255, 255, 0)
-
-        h_scaled = humidity / 100
-        orange_val = (orange[0] * h_scaled, orange[1]
-                    * h_scaled, orange[2] * h_scaled)
-
-        frame[29] = orange_val
-
-        t_scaled = temperature / (35 + 10)
-        orange_val = (orange[0] * t_scaled, orange[1]
-                    * t_scaled, orange[2] * t_scaled)
-
-        frame[59] = orange_val
-#        print(frame)
 
         client.put_pixels(map_pixels(frame))
         time.sleep(0.05)
