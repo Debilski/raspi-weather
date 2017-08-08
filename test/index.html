@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Open Pixel Control emulator</title>
+
+        <style>
+            #leds .row {
+                display: flex;
+                justify-content: space-around;
+            }
+            .led {
+                width: 1em;
+                height: 1em;
+                border: 1px dotted #999999;
+                display: inline-flex;
+            }
+        </style>
+
+    </head>
+    <body>
+
+        <div id="leds"></div>
+
+        <script>
+            function componentToHex(c) {
+                var hex = c.toString(16);
+                return hex.length == 1 ? "0" + hex : hex;
+            }
+
+function rgbToHex(r, g, b) {
+    return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+}
+
+var ws = new WebSocket("ws://127.0.0.1:5678/");
+ws.onerror = function (e) { console.log(e); }
+ws.onmessage = function (event) {
+    var content = JSON.parse(event.data);
+
+    var leds = document.getElementById('leds');
+    var all_rows = leds.childNodes;
+    for (var i=0; i < content.length; i++) {
+
+        if (i < 64) {
+          all_rows[0].childNodes[i].style.backgroundColor = rgbToHex(content[i][0], content[i][1], content[i][2]);
+      } else {
+          all_rows[1].childNodes[i % 64].style.backgroundColor = rgbToHex(content[i][0], content[i][1], content[i][2]);
+
+      }
+    }
+};
+
+var leds = document.getElementById('leds');
+
+var inner = document.createElement('div');
+var clone;
+
+var row;
+var df;
+
+row = document.createElement('div');
+row.setAttribute('class', 'row');
+df = document.createDocumentFragment();
+for (var i = 0; i < 64; i++) {
+    // Performance tip: clone a node so that you don't reuse createElement()
+    clone = inner.cloneNode();
+    clone.setAttribute('class', 'led')
+    clone.setAttribute('data-id', i.toString());
+
+    // Performance tip: append to the document fragment
+    df.appendChild(clone);
+}
+row.appendChild(df);
+leds.appendChild(row);
+
+
+row = document.createElement('div');
+row.setAttribute('class', 'row');
+df = document.createDocumentFragment();
+for (var i = 64 * 4; i < 64 * 5; i++) {
+    // Performance tip: clone a node so that you don't reuse createElement()
+    clone = inner.cloneNode();
+    clone.setAttribute('class', 'led')
+    clone.setAttribute('data-id', i.toString());
+
+    // Performance tip: append to the document fragment
+    df.appendChild(clone);
+}
+row.appendChild(df);
+leds.appendChild(row);
+        </script>
+    </body>
+</html>
