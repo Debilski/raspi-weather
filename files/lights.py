@@ -112,7 +112,7 @@ def dim_percentage(rgb, factor):
     return hsv_to_rgb((h, s, v * factor))
 
 def map_pixels(pixels):
-    fill = [(0, 0, 0)] * 64 * 4
+    fill = [(0, 0, 0)] * 64 * 3
     return pixels[0:64].tolist() + fill + pixels[64:64*2].tolist()
 
 DHDataRaw = namedtuple('DHDataRaw', ['temp', 'hum', 'wind', 'rain'])
