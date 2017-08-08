@@ -51,6 +51,7 @@ except (FileNotFoundError, ValueError) as e:
         "SUN_COLOR": opc.hex_to_rgb("#ffcc00"),
         "NUM": 20,
         "WIND_FACTOR": 0.1,
+        "RAIN_FACTOR": 0.05,
     }
 
 
