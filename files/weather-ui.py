@@ -25,11 +25,13 @@ class DemoPiUi(object):
         self._socket = socket
 
         self.ctx = zmq.Context()
-        self.sock = self.ctx.socket(zmq.PAIR)
+        self.sock = self.ctx.socket(zmq.DEALER)
         self.sock.connect(self._socket)
 
-        self.poller = zmq.Poller()
-        self.poller.register(self.sock, zmq.POLLIN)
+        self.pollin = zmq.Poller()
+        self.pollin.register(self.sock, zmq.POLLIN)
+        self.pollout = zmq.Poller()
+        self.pollout.register(self.sock, zmq.POLLOUT)
 
     def page_static(self):
         self.page = self.ui.new_ui_page(title="Static Content", prev_text="Back", onprevclick=self.main_menu)
@@ -83,6 +85,8 @@ class DemoPiUi(object):
         self.page = self.ui.new_ui_page(title="PiUi")
         self.list = self.page.add_list()
         self.list.add_item("Reload UI", onclick=lambda: os.system("sudo systemctl reload piui.service"))
+        
+        self.list.add_item("Info", onclick=self.show_info)
 
         self.list.add_item("Change Color", onclick=self.page_change_color)
 
@@ -135,59 +139,58 @@ class DemoPiUi(object):
         self.page.add_element('br')
         fast = self.page.add_button("Fast &darr;", lambda: self.do_show_yesterday(30))
 
-    def do_change_color(self, r, g, b):
-        msg = {"CHANGE_COLOR": [r, g, b]}
+    def show_info(self):
+        self.page = self.ui.new_ui_page(title="Change Color", prev_text="Back", onprevclick=self.main_menu)
+        self.title = self.page.add_textbox("Info", "h1")
+        self.page.add_element('br')
+
+        self.list = self.page.add_list()
+        info = self.query_info()
+        if info:
+            for k, v in info.items():
+                self.list.add_item("{}: {}".format(k, v))
+
+    def query(self, msg, args):
+        msg = {msg: args}
+        evts = self.pollout.poll(1000)
+        if not evts:
+            return
         self.sock.send_json(msg)
-        evts = self.poller.poll(1000)
+        evts = self.pollin.poll(1000)
         if not evts:
             return
         new_col = self.sock.recv_json()
         self.title.set_text(str(new_col))
 
-    def do_change_num_leds(self, diff):
-        msg = {"CHANGE_NUM_LEDS": diff}
-        self.sock.send_json(msg)
-        evts = self.poller.poll(1000)
+    def query_info(self):
+        msg = {"INFO": []}
+        evts = self.pollout.poll(1000)
         if not evts:
             return
-        new_col = self.sock.recv_json()
-        self.title.set_text(str(new_col))
-
-    def do_change_dim_leds(self, mult):
-        msg = {"DIM_LEDS": mult}
         self.sock.send_json(msg)
-        evts = self.poller.poll(1000)
+        evts = self.pollin.poll(3000)
         if not evts:
             return
-        new_col = self.sock.recv_json()
-        self.title.set_text(str(new_col))
+        info = self.sock.recv_json()
+        return info
 
     def do_change_wind(self, delt):
-        msg = {"WIND_FACTOR": delt}
-        self.sock.send_json(msg)
-        evts = self.poller.poll(1000)
-        if not evts:
-            return
-        new_col = self.sock.recv_json()
-        self.title.set_text(str(new_col))
+        return self.query("WIND_FACTOR", delt)
 
     def do_change_rain(self, delt):
-        msg = {"RAIN_FACTOR": delt}
-        self.sock.send_json(msg)
-        evts = self.poller.poll(1000)
-        if not evts:
-            return
-        new_col = self.sock.recv_json()
-        self.title.set_text(str(new_col))
+        return self.query("RAIN_FACTOR", delt)
 
     def do_show_yesterday(self, delt):
-        msg = {"START_ADAPT": delt}
-        self.sock.send_json(msg)
-        evts = self.poller.poll(1000)
-        if not evts:
-            return
-        new_col = self.sock.recv_json()
-        self.title.set_text(str(new_col))
+        return self.query("START_ADAPT", delt)
+
+    def do_change_color(self, r, g, b):
+        return self.query("CHANGE_COLOR", [r, g, b])
+
+    def do_change_num_leds(self, diff):
+        return self.query("CHANGE_NUM_LEDS", diff)
+
+    def do_change_dim_leds(self, mult):
+        return self.query("DIM_LEDS", mult)
 
     def page_reboot(self):
         self.page = self.ui.new_ui_page(title="Reboot", prev_text="Back", onprevclick=self.main_menu)

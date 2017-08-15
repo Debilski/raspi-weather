@@ -188,6 +188,9 @@ def parse_msg(msg):
         CONFIG["COLOR"] = dim_pixel(rgb, mult)
         return CONFIG["COLOR"]
 
+    if "INFO" in msg:
+        return CONFIG
+
     if "SAVE_CONFIG" in msg:
         with open(LIGHTS_CONFIG_FILE, 'w') as outfile:
             json.dump(jsonData, outfile, sort_keys=True, indent=4, ensure_ascii=False)
@@ -242,7 +245,7 @@ def init():
 
 def main(socket):
     ctx = zmq.Context()
-    sock = ctx.socket(zmq.PAIR)
+    sock = ctx.socket(zmq.ROUTER)
     sock.bind(socket)
 
     poller = zmq.Poller()
@@ -255,10 +258,10 @@ def main(socket):
         socks = dict(poller.poll(timeout=100))
         if socks and sock in socks and socks[sock] == zmq.POLLIN:
             try:
-                msg = sock.recv_json()
+                id_, msg = sock.recv_multipart()
                 print("Received msg", msg)
-                res = parse_msg(msg)
-                sock.send_json(res)
+                res = parse_msg(json.loads(msg))
+                sock.send_multipart([id_, json.dumps(res).encode()])
             except json.decoder.JSONDecodeError:
                 print("Bad json msg. Ignoring.")
 
