@@ -81,7 +81,7 @@ def main():
             INSERT INTO weather
             VALUES
             (?, ?, ?, ?, ?)
-        ''', (datetime.datetime.now(), temp, hum, wind, rain))
+        ''', (datetime.datetime.now(timezone.utc), temp, hum, wind, rain))
         conn.commit()
 
         df = pd.DataFrame([frame], columns=["TIME"] + WDE_DATA_FORMAT)

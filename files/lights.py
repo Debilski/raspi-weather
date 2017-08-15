@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import datetime
+from datetime import timezone
 import functools
 import itertools
 import json
@@ -193,8 +194,8 @@ def parse_msg(msg):
 
     if "START_ADAPT" in msg:
         delta = msg["START_ADAPT"]
-        CONFIG["ADAPTED_TIME_START"] = datetime.datetime.now()
-        CONFIG["ADAPTED_TIME_END"] = datetime.datetime.now() + datetime.timedelta(seconds=delta)
+        CONFIG["ADAPTED_TIME_START"] = datetime.datetime.now(timezone.utc)
+        CONFIG["ADAPTED_TIME_END"] = datetime.datetime.now(timezone.utc) + datetime.timedelta(seconds=delta)
 
     if "WIND_FACTOR" in msg:
         wind_delta = msg["WIND_FACTOR"]
@@ -215,18 +216,18 @@ def parse_msg(msg):
 
 def adapt_date(range_start, range_end):
     if not CONFIG["ADAPTED_TIME_END"]:
-        return datetime.datetime.now()
+        return datetime.datetime.now(timezone.utc)
     if not CONFIG["ADAPTED_TIME_START"]:
-        return datetime.datetime.now()
+        return datetime.datetime.now(timezone.utc)
 
-    if datetime.datetime.now() > CONFIG["ADAPTED_TIME_END"]:
+    if datetime.datetime.now(timezone.utc) > CONFIG["ADAPTED_TIME_END"]:
         CONFIG["ADAPTED_TIME_END"] = None
         CONFIG["ADAPTED_TIME_START"] = None
-        return datetime.datetime.now()
+        return datetime.datetime.now(timezone.utc)
 
     delta_orig = range_end - range_start
     delta_adapt = CONFIG["ADAPTED_TIME_END"] - CONFIG["ADAPTED_TIME_START"]
-    percent_in = (datetime.datetime.now() - CONFIG["ADAPTED_TIME_START"]) / delta_adapt
+    percent_in = (datetime.datetime.now(timezone.utc) - CONFIG["ADAPTED_TIME_START"]) / delta_adapt
     return range_start + percent_in * delta_orig
 
 
@@ -266,7 +267,7 @@ def main(socket):
         humidity, temperature = 29, 20 # DHT.read_retry(DHT.DHT11, 4)
 
         # yesterday is the day that is more than 28 hours ago …
-        yesterday = datetime.datetime.now() - datetime.timedelta(hours=28)
+        yesterday = datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=28)
         yesterday_sunrise, yesterday_sunset = pysolar.util.get_sunrise_sunset(
             latitude_deg=CONFIG["LATITUDE_DEG"],
             longitude_deg=CONFIG["LONGITUDE_DEG"],
@@ -281,6 +282,7 @@ def main(socket):
             longitude_deg=CONFIG["LONGITUDE_DEG"],
             when=adapted_date
         )
+        print(repr(adapted_date), sun_altitude)
 
         sun_pixels_a_dens = set_density(SUN_PIXELS_A, sun_altitude, 0, 90)
         sun_pixels_b_dens = set_density(SUN_PIXELS_B, sun_altitude, 0, 90)
@@ -316,7 +318,7 @@ def main(socket):
                 frame[p] = c2
                 frame[rand_pix] = c1
 
-
+        print(np.count_nonzero(frame), sum((frame != [0., 0., 0.]).all(1)))
         client.put_pixels(map_pixels(frame))
         time.sleep(0.05)
 
