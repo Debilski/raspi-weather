@@ -14,6 +14,7 @@ import time
 import numpy as np
 import pysolar
 
+import sqlite3
 import zmq
 
 import opc
@@ -23,11 +24,18 @@ client = opc.Client('localhost:7890')
 
 PIXELS_TOTAL = set(range(2 * 64))
 
-BASE_PIXELS_A = range(6, 6 + 4)
-BASE_PIXELS_B = range(64 + 10, 64 + 10 + 4)
+def BASE_PIXELS_A():
+    num = CONFIG["NUM"]
+    return range(6, 6 + num)
+def BASE_PIXELS_B():
+    num = CONFIG["NUM"]
+    return range(64 + 10, 64 + 10 + num)
 
-SUN_PIXELS_A = range(6 + 4, 6 + 4 + 29)
-SUN_PIXELS_B = range(64 + 30, 64 + 59)
+def SUN_PIXELS_A():
+    num = CONFIG["NUM"]
+    return range(6 + num, 6 + num + 29)
+def SUN_PIXELS_B():
+    return range(64 + 30, 64 + 59)
 
 
 PIXELS_BASE = {2, 3, 4, 8}
@@ -42,15 +50,15 @@ except (FileNotFoundError, ValueError) as e:
     print("Using default values for config")
 
     CONFIG = {
-        "LATITUDE_DEG": 52.52,
-        "LONGITUDE_DEG": 13.41,
+        "LATITUDE_DEG": 52.0934,
+        "LONGITUDE_DEG": 7.2360,
 
         "ADAPTED_TIME_START": None,
         "ADAPTED_TIME_END": None,
 
         "COLOR": (255, 47, 1),
         "SUN_COLOR": opc.hex_to_rgb("#ffcc00"),
-        "NUM": 20,
+        "NUM": 4,
         "WIND_FACTOR": 0.1,
         "RAIN_FACTOR": 0.05,
     }
@@ -122,8 +130,14 @@ def map_pixels(pixels):
     fill = [(0, 0, 0)] * 64 * 3
     return pixels[0:64].tolist() + fill + pixels[64:64*2].tolist()
 
-DHDataRaw = namedtuple('DHDataRaw', ['temp', 'hum', 'wind', 'rain'])
-DHData = namedtuple('DHData', ['temp', 'hum', 'wind', 'rain_deriv'])
+DHDataRaw = namedtuple('DHDataRaw', ['date', 'temp', 'hum', 'wind', 'rain'])
+DHData = namedtuple('DHData', ['date', 'temp', 'hum', 'wind', 'rain_deriv'])
+
+def weather_row_factory(cursor, row):
+    return DHDataRaw(*row)
+
+conn = sqlite3.connect('weather.db', detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
+conn.row_factory = weather_row_factory
 
 def get_closest_data(conn, date):
     for row in conn.execute('''
@@ -132,12 +146,32 @@ def get_closest_data(conn, date):
         ''', (date, )):
         return row
 
+def get_closest_data_deriv(conn, date, max_diff):
+    rows = list(conn.execute('''
+        SELECT date as "[timestamp]", temp, hum, wind, rain FROM weather
+        ORDER BY ABS( strftime( "%s", date ) - strftime( "%s", ? ) ) ASC
+        LIMIT 2
+        ''', (date, )))
+    dt = (rows[0].date - rows[1].date)
+    if dt.seconds > max_diff:
+        r = rows[0]
+        dhdata = DHData(date=r.date, temp=r.temp, hum=r.hum, wind=r.wind, rain_deriv=None)
+    else:
+        r = rows[0]
+        rain = (rows[0].rain - rows[1].rain) / dt.seconds
+        if rain < 0:
+            rain = 0
+        dhdata = DHData(date=r.date, temp=r.temp, hum=r.hum, wind=r.wind, rain_deriv=rain)
+    return dhdata
+
 def get_data_in_timerange(conn, start, end):
     return list(conn.execute('''
         SELECT * FROM weather
         WHERE date BETWEEN ? and ?
         ''', (start, end)))
 
+def get_most_recent_date(conn):
+    return get_closest_data(conn, datetime.datetime.now(timezone.utc))
 
 def set_density(pixels, value, min_val, max_val):
     l = len(pixels) - 1
@@ -260,7 +294,7 @@ def main(socket):
             try:
                 id_, msg = sock.recv_multipart()
                 print("Received msg", msg)
-                res = parse_msg(json.loads(msg))
+                res = parse_msg(json.loads(msg.decode()))
                 sock.send_multipart([id_, json.dumps(res).encode()])
             except json.decoder.JSONDecodeError:
                 print("Bad json msg. Ignoring.")
@@ -276,6 +310,13 @@ def main(socket):
             longitude_deg=CONFIG["LONGITUDE_DEG"],
             when=yesterday
         )
+        # today is the day that was more than 4 hours ago …
+        today = datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=4)
+        today_sunrise, today_sunset = pysolar.util.get_sunrise_sunset(
+            latitude_deg=CONFIG["LATITUDE_DEG"],
+            longitude_deg=CONFIG["LONGITUDE_DEG"],
+            when=today
+        )
 
         adapted_date = adapt_date(yesterday_sunrise, yesterday_sunset)
 #        print(adapted_date)
@@ -287,8 +328,8 @@ def main(socket):
         )
         print(repr(adapted_date), sun_altitude)
 
-        sun_pixels_a_dens = set_density(SUN_PIXELS_A, sun_altitude, 0, 90)
-        sun_pixels_b_dens = set_density(SUN_PIXELS_B, sun_altitude, 0, 90)
+        sun_pixels_a_dens = set_density(SUN_PIXELS_A(), sun_altitude, 0, 90)
+        sun_pixels_b_dens = set_density(SUN_PIXELS_B(), sun_altitude, 0, 90)
 
         frame = [(0, 0, 0)] * numLEDs
 
@@ -299,20 +340,20 @@ def main(socket):
 
         combined_frame = sun_pixels_a_dens + sun_pixels_b_dens
 
-        for p in (list(BASE_PIXELS_A) + list(BASE_PIXELS_B)):
+        for p in (list(BASE_PIXELS_A()) + list(BASE_PIXELS_B())):
             col = CONFIG["COLOR"]
             #col = dim_pixel(col, random.randint(-40, 10))
             col = dim_percentage(col, random.uniform(0.9 - CONFIG["WIND_FACTOR"], 1.1))
             frame[p] = col
 
-        for p in (list(SUN_PIXELS_A) + list(SUN_PIXELS_B)):
+        for p in (list(SUN_PIXELS_A()) + list(SUN_PIXELS_B())):
             col = CONFIG["SUN_COLOR"]
             #col = dim_pixel(col, random.randint(-40, 10))
             col = dim_percentage(col, random.uniform(0.9 - CONFIG["WIND_FACTOR"], 1.1) * combined_frame[p])
             frame[p] = col
 
         all_pixels = list(range(3, 60)) + list(range(64 + 3, 64 + 60))
-        for p in (list(BASE_PIXELS_A) + list(BASE_PIXELS_B) + list(SUN_PIXELS_A) + list(SUN_PIXELS_B)):
+        for p in (list(BASE_PIXELS_A()) + list(BASE_PIXELS_B()) + list(SUN_PIXELS_A()) + list(SUN_PIXELS_B())):
             # iterate and swap with a chance of 0.1 with another random pixel:
             if random.random() <= CONFIG["RAIN_FACTOR"]:
                 rand_pix = random.choice(all_pixels)
@@ -321,7 +362,7 @@ def main(socket):
                 frame[p] = c2
                 frame[rand_pix] = c1
 
-        print(np.count_nonzero(frame), sum((frame != [0., 0., 0.]).all(1)))
+#        print(np.count_nonzero(frame), sum((frame != [0., 0., 0.]).all(1)))
         client.put_pixels(map_pixels(frame))
         time.sleep(0.05)
 
