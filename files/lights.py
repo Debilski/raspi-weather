@@ -137,9 +137,9 @@ def weather_row_factory(cursor, row):
     return DHDataRaw(*row)
 
 conn = sqlite3.connect('weather.db', detect_types=sqlite3.PARSE_DECLTYPES|sqlite3.PARSE_COLNAMES)
-conn.row_factory = weather_row_factory
 
 def get_closest_data(conn, date):
+    conn.row_factory = weather_row_factory
     for row in conn.execute('''
         SELECT * FROM weather
         ORDER BY ABS( strftime( "%s", date ) - strftime( "%s", ? ) ) ASC
@@ -147,6 +147,7 @@ def get_closest_data(conn, date):
         return row
 
 def get_closest_data_deriv(conn, date, max_diff):
+    conn.row_factory = weather_row_factory
     rows = list(conn.execute('''
         SELECT date as "[timestamp]", temp, hum, wind, rain FROM weather
         ORDER BY ABS( strftime( "%s", date ) - strftime( "%s", ? ) ) ASC
@@ -165,6 +166,7 @@ def get_closest_data_deriv(conn, date, max_diff):
     return dhdata
 
 def get_data_in_timerange(conn, start, end):
+    conn.row_factory = weather_row_factory
     return list(conn.execute('''
         SELECT * FROM weather
         WHERE date BETWEEN ? and ?
@@ -234,6 +236,11 @@ def parse_msg(msg):
         CONFIG["ADAPTED_TIME_START"] = datetime.datetime.now(timezone.utc)
         CONFIG["ADAPTED_TIME_END"] = datetime.datetime.now(timezone.utc) + datetime.timedelta(seconds=delta)
 
+    if "STOP_ADAPT" in msg:
+        delta = msg["STOP_ADAPT"]
+        CONFIG["ADAPTED_TIME_START"] = None
+        CONFIG["ADAPTED_TIME_END"] = None
+
     if "WIND_FACTOR" in msg:
         wind_delta = msg["WIND_FACTOR"]
         CONFIG["WIND_FACTOR"] = CONFIG["WIND_FACTOR"] + wind_delta
@@ -252,6 +259,12 @@ def parse_msg(msg):
 
 
 def adapt_date(range_start, range_end):
+    #if CONFIG["MODE"] == "TODAY": 
+    #if CONFIG["MODE"] == "YESTERDAY":
+
+#    if CONFIG["MODE"] == "LIVE":
+#        return datetime.datetime.now(timezone.utc)
+
     if not CONFIG["ADAPTED_TIME_END"]:
         return datetime.datetime.now(timezone.utc)
     if not CONFIG["ADAPTED_TIME_START"]:
@@ -277,6 +290,44 @@ def init():
         client.put_pixels(map_pixels(frame))
         time.sleep(0.05)
 
+
+def find_min_max_range(conn):
+    # we search the last 10000 entries for wind and rain and figure out the max values
+    # max rain is trivial
+    conn.row_factory = None
+    query = """
+        SELECT MAX(wind) FROM weather
+        ORDER BY date DESC
+        LIMIT 10000
+    """
+    try:
+        max_wind = list(conn.execute(query))[0][0]
+    except IndexError:
+        max_wind = 10 # a guess
+
+    query = """
+        SELECT date as "[timestamp]", rain FROM weather
+        ORDER BY date DESC
+        LIMIT 10000
+    """
+    rain_deriv = 0
+    last_date = None
+    last_rain = None
+    for date, rain in conn.execute(query):
+        if last_date is None:
+            last_date = date
+            last_rain = rain
+            continue
+        drv = (rain - last_rain) / (date - last_date).seconds
+        rain_deriv = max(rain_deriv, abs(drv))
+
+    if rain_deriv == 0:
+        rain_deriv = 3 / 60.0 # a guess, 3 per minute
+
+    return max_wind, rain_deriv
+
+
+
 def main(socket):
     ctx = zmq.Context()
     sock = ctx.socket(zmq.ROUTER)
@@ -287,7 +338,21 @@ def main(socket):
 
     init()
 
-    t = 0
+    min_temp = - 10
+    min_hum = 20
+    min_wind = 0
+    min_rain_deriv = 0
+
+    max_temp = 30
+    max_hum = 80
+    max_wind, max_rain_deriv = find_min_max_range(conn)
+
+    print("Assuming min vals: temp={}, hum={}, wind={}, rain_deriv={}".format(min_temp, min_hum, min_wind, min_rain_deriv))
+    print("Assuming max vals: temp={}, hum={}, wind={}, rain_deriv={}".format(max_temp, max_hum, max_wind, max_rain_deriv))
+
+    adapted_date = None
+    last_adapted_date = None
+
     while True:
         socks = dict(poller.poll(timeout=100))
         if socks and sock in socks and socks[sock] == zmq.POLLIN:
@@ -298,10 +363,6 @@ def main(socket):
                 sock.send_multipart([id_, json.dumps(res).encode()])
             except json.decoder.JSONDecodeError:
                 print("Bad json msg. Ignoring.")
-
-        t += 0.4
-
-        humidity, temperature = 29, 20 # DHT.read_retry(DHT.DHT11, 4)
 
         # yesterday is the day that is more than 28 hours ago …
         yesterday = datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=28)
@@ -319,7 +380,12 @@ def main(socket):
         )
 
         adapted_date = adapt_date(yesterday_sunrise, yesterday_sunset)
-#        print(adapted_date)
+        if not last_adapted_date or (adapted_date - last_adapted_date).seconds > 60:
+            data = get_closest_data_deriv(conn, adapted_date, 60 * 30)
+            print("Fetching new data:", data)
+
+        last_adapted_date = adapted_date
+
 
         sun_altitude = pysolar.solar.get_altitude(
             latitude_deg=CONFIG["LATITUDE_DEG"],
@@ -343,19 +409,24 @@ def main(socket):
         for p in (list(BASE_PIXELS_A()) + list(BASE_PIXELS_B())):
             col = CONFIG["COLOR"]
             #col = dim_pixel(col, random.randint(-40, 10))
-            col = dim_percentage(col, random.uniform(0.9 - CONFIG["WIND_FACTOR"], 1.1))
+            wind_factor = data.wind / max_wind
+            wind_dim = random.uniform(0.9 - CONFIG["WIND_FACTOR"] * wind_factor, 1.1)
+            col = dim_percentage(col, wind_dim)
             frame[p] = col
 
         for p in (list(SUN_PIXELS_A()) + list(SUN_PIXELS_B())):
             col = CONFIG["SUN_COLOR"]
             #col = dim_pixel(col, random.randint(-40, 10))
-            col = dim_percentage(col, random.uniform(0.9 - CONFIG["WIND_FACTOR"], 1.1) * combined_frame[p])
+            wind_factor = data.wind / max_wind
+            wind_dim = random.uniform(0.9 - CONFIG["WIND_FACTOR"] * wind_factor, 1.1)
+            col = dim_percentage(col, wind_dim * combined_frame[p])
             frame[p] = col
 
         all_pixels = list(range(3, 60)) + list(range(64 + 3, 64 + 60))
         for p in (list(BASE_PIXELS_A()) + list(BASE_PIXELS_B()) + list(SUN_PIXELS_A()) + list(SUN_PIXELS_B())):
             # iterate and swap with a chance of 0.1 with another random pixel:
-            if random.random() <= CONFIG["RAIN_FACTOR"]:
+            rain_factor = data.rain_deriv / max_rain_deriv * CONFIG["RAIN_FACTOR"] + 0.01
+            if random.random() <= rain_factor:
                 rand_pix = random.choice(all_pixels)
                 c1 = frame[p].copy()
                 c2 = frame[rand_pix].copy()

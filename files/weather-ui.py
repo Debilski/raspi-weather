@@ -137,7 +137,9 @@ class DemoPiUi(object):
         minus = self.page.add_button("Rain &darr;", lambda: self.do_change_rain(-0.05))
 
         self.page.add_element('br')
-        fast = self.page.add_button("Fast &darr;", lambda: self.do_show_yesterday(30))
+        fast = self.page.add_button("Fast", lambda: self.do_show_yesterday(30))
+        slow = self.page.add_button("Slow", lambda: self.do_show_yesterday(60 * 30))
+        slow = self.page.add_button("Stop", self.do_stop_adapt)
 
     def show_info(self):
         self.page = self.ui.new_ui_page(title="Change Color", prev_text="Back", onprevclick=self.main_menu)
@@ -182,6 +184,9 @@ class DemoPiUi(object):
 
     def do_show_yesterday(self, delt):
         return self.query("START_ADAPT", delt)
+
+    def do_stop_adapt(self):
+        return self.query("STOP_ADAPT", [])
 
     def do_change_color(self, r, g, b):
         return self.query("CHANGE_COLOR", [r, g, b])
