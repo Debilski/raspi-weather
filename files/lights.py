@@ -425,7 +425,10 @@ def main(socket):
         all_pixels = list(range(3, 60)) + list(range(64 + 3, 64 + 60))
         for p in (list(BASE_PIXELS_A()) + list(BASE_PIXELS_B()) + list(SUN_PIXELS_A()) + list(SUN_PIXELS_B())):
             # iterate and swap with a chance of 0.1 with another random pixel:
-            rain_factor = data.rain_deriv / max_rain_deriv * CONFIG["RAIN_FACTOR"] + 0.01
+            if data.rain_deriv is not None:
+                rain_factor = data.rain_deriv / max_rain_deriv * CONFIG["RAIN_FACTOR"] + 0.001
+            else:
+                rain_factor = 0 / max_rain_deriv * CONFIG["RAIN_FACTOR"] + 0.001
             if random.random() <= rain_factor:
                 rand_pix = random.choice(all_pixels)
                 c1 = frame[p].copy()
