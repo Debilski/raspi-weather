@@ -61,6 +61,7 @@ except (FileNotFoundError, ValueError) as e:
         "NUM": 4,
         "WIND_FACTOR": 0.1,
         "RAIN_FACTOR": 0.05,
+        "MODE": "12h",
     }
 
 
@@ -259,7 +260,10 @@ def parse_msg(msg):
 
 
 def adapt_date(range_start, range_end):
-    #if CONFIG["MODE"] == "TODAY": 
+    if CONFIG["MODE"] == "12h":
+        time_now = datetime.datetime.now(timezone.utc)
+        CONFIG["ADAPTED_TIME_START"] = datetime.datetime(time_now.year, time_now.month, time_now.day, time_now.hour, time_now.minute % 30, tzinfo=datetime.timezone.utc)
+        CONFIG["ADAPTED_TIME_END"] = CONFIG["ADAPTED_TIME_START"] + datetime.timedelta(minutes=30)
     #if CONFIG["MODE"] == "YESTERDAY":
 
 #    if CONFIG["MODE"] == "LIVE":
@@ -379,7 +383,10 @@ def main(socket):
             when=today
         )
 
-        adapted_date = adapt_date(yesterday_sunrise, yesterday_sunset)
+        twelve_h_ago = datetime.datetime.now(timezone.utc) - datetime.timedelta(hours=12)
+        time_now = datetime.datetime.now(timezone.utc)
+
+        adapted_date = adapt_date(twelve_h_ago, time_now)
         if not last_adapted_date or (adapted_date - last_adapted_date).seconds > 60:
             data = get_closest_data_deriv(conn, adapted_date, 60 * 30)
             print("Fetching new data:", data)
