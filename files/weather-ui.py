@@ -118,8 +118,8 @@ class DemoPiUi(object):
         self.page.add_element('br')
         self.page.add_element('br')
 
-        plus = self.page.add_button("Num &uarr;", lambda: self.do_change_num_leds(+1))
-        minus = self.page.add_button("Num &darr;", lambda: self.do_change_num_leds(-1))
+        plus = self.page.add_button("Num red &uarr;", lambda: self.do_change_num_leds(+1))
+        minus = self.page.add_button("Num red &darr;", lambda: self.do_change_num_leds(-1))
 
         self.page.add_element('br')
 

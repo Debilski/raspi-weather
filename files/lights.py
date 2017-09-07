@@ -58,7 +58,7 @@ except (FileNotFoundError, ValueError) as e:
 
         "COLOR": (223, 41, 1),
         "SUN_COLOR": (111, 89, 0),
-        "NUM": 4,
+        "NUM": 6,
         "WIND_FACTOR": 0.1,
         "RAIN_FACTOR": 0.05,
         "MODE": "12h",
@@ -445,7 +445,7 @@ def main(socket):
             if data.rain_deriv is not None:
                 rain_factor = data.rain_deriv / max_rain_deriv * CONFIG["RAIN_FACTOR"] + 0.001
             else:
-                rain_factor = 0 / max_rain_deriv * CONFIG["RAIN_FACTOR"] + 0.001
+                rain_factor = CONFIG["RAIN_FACTOR"] / 10.0 + 0.001
             if random.random() <= rain_factor:
                 rand_pix = random.choice(all_pixels)
                 c1 = frame[p].copy()
