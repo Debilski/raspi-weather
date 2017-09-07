@@ -56,8 +56,8 @@ except (FileNotFoundError, ValueError) as e:
         "ADAPTED_TIME_START": None,
         "ADAPTED_TIME_END": None,
 
-        "COLOR": (255, 47, 1),
-        "SUN_COLOR": opc.hex_to_rgb("#ffcc00"),
+        "COLOR": (223, 41, 1),
+        "SUN_COLOR": (111, 89, 0),
         "NUM": 4,
         "WIND_FACTOR": 0.1,
         "RAIN_FACTOR": 0.05,
