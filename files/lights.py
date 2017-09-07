@@ -262,22 +262,23 @@ def parse_msg(msg):
 def adapt_date(range_start, range_end):
     if CONFIG["MODE"] == "12h":
         time_now = datetime.datetime.now(timezone.utc)
-        CONFIG["ADAPTED_TIME_START"] = datetime.datetime(time_now.year, time_now.month, time_now.day, time_now.hour, time_now.minute % 30, tzinfo=datetime.timezone.utc)
+        CONFIG["ADAPTED_TIME_START"] = datetime.datetime(time_now.year, time_now.month, time_now.day, time_now.hour, (time_now.minute // 30) * 30, tzinfo=datetime.timezone.utc)
         CONFIG["ADAPTED_TIME_END"] = CONFIG["ADAPTED_TIME_START"] + datetime.timedelta(minutes=30)
     #if CONFIG["MODE"] == "YESTERDAY":
 
 #    if CONFIG["MODE"] == "LIVE":
 #        return datetime.datetime.now(timezone.utc)
 
-    if not CONFIG["ADAPTED_TIME_END"]:
-        return datetime.datetime.now(timezone.utc)
-    if not CONFIG["ADAPTED_TIME_START"]:
-        return datetime.datetime.now(timezone.utc)
+    else:
+        if not CONFIG["ADAPTED_TIME_END"]:
+            return datetime.datetime.now(timezone.utc)
+        if not CONFIG["ADAPTED_TIME_START"]:
+            return datetime.datetime.now(timezone.utc)
 
-    if datetime.datetime.now(timezone.utc) > CONFIG["ADAPTED_TIME_END"]:
-        CONFIG["ADAPTED_TIME_END"] = None
-        CONFIG["ADAPTED_TIME_START"] = None
-        return datetime.datetime.now(timezone.utc)
+        if datetime.datetime.now(timezone.utc) > CONFIG["ADAPTED_TIME_END"]:
+            CONFIG["ADAPTED_TIME_END"] = None
+            CONFIG["ADAPTED_TIME_START"] = None
+            return datetime.datetime.now(timezone.utc)
 
     delta_orig = range_end - range_start
     delta_adapt = CONFIG["ADAPTED_TIME_END"] - CONFIG["ADAPTED_TIME_START"]
@@ -289,7 +290,7 @@ def init():
     for i in range(10):
         frame = np.zeros((numLEDs, 3))
         frame[6:10] = (255, 47, 1)
-        frame[64 + 10, 64 + 10 + 4] = (255, 47, 1) 
+        frame[64 + 10: 64 + 10 + 4] = (255, 47, 1) 
 
         client.put_pixels(map_pixels(frame))
         time.sleep(0.05)
