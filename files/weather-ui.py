@@ -123,8 +123,13 @@ class DemoPiUi(object):
 
         self.page.add_element('br')
 
-        plus = self.page.add_button("Dim &uarr;", lambda: self.do_change_dim_leds(8))
-        minus = self.page.add_button("Dim &darr;", lambda: self.do_change_dim_leds(-8))
+        plus = self.page.add_button("Dim red &uarr;", lambda: self.do_change_dim_leds(8))
+        minus = self.page.add_button("Dim red &darr;", lambda: self.do_change_dim_leds(-8))
+
+        self.page.add_element('br')
+
+        plus = self.page.add_button("Dim yellow &uarr;", lambda: self.do_change_dim_sun(8))
+        minus = self.page.add_button("Dim yellow &darr;", lambda: self.do_change_dim_sun(-8))
 
         self.page.add_element('br')
 
@@ -196,6 +201,9 @@ class DemoPiUi(object):
 
     def do_change_dim_leds(self, mult):
         return self.query("DIM_LEDS", mult)
+
+    def do_change_dim_sun(self, mult):
+        return self.query("DIM_SUN", mult)
 
     def page_reboot(self):
         self.page = self.ui.new_ui_page(title="Reboot", prev_text="Back", onprevclick=self.main_menu)

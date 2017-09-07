@@ -225,6 +225,12 @@ def parse_msg(msg):
         CONFIG["COLOR"] = dim_pixel(rgb, mult)
         return CONFIG["COLOR"]
 
+    if "DIM_SUN" in msg:
+        mult = msg["DIM_SUN"]
+        rgb = CONFIG["SUN_COLOR"]
+        CONFIG["SUN_COLOR"] = dim_pixel(rgb, mult)
+        return CONFIG["SUN_COLOR"]
+
     if "INFO" in msg:
         return CONFIG
 
