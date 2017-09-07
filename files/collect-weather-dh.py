@@ -53,6 +53,7 @@ def main():
 
 
     while True:
+        print("Trying to read line from {}".format(port))
         # read line from WDE1
         line = ser.readline()
         line = line.strip()
