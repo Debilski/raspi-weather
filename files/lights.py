@@ -287,7 +287,10 @@ def adapt_date(range_start, range_end):
 
 def init():
     for i in range(10):
-        frame = np.ones((numLEDs, 3)) * (20, 200, 20)
+        frame = np.zeros((numLEDs, 3))
+        frame[6:10] = (255, 47, 1)
+        frame[64 + 10, 64 + 10 + 4] = (255, 47, 1) 
+
         client.put_pixels(map_pixels(frame))
         time.sleep(0.05)
         frame = np.zeros((numLEDs, 3))
