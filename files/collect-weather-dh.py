@@ -1,10 +1,10 @@
 #!/usr/bin/python3 -u
 
 import datetime
+from datetime import timezone
 import serial
 import sys
 import os
-import timezone
 
 import sqlite3
 import pandas as pd
