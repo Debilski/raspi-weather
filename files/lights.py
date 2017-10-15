@@ -37,6 +37,17 @@ def SUN_PIXELS_A():
 def SUN_PIXELS_B():
     return range(64 + 30, 64 + 59)
 
+def TEMP_PIXELS():
+    return range(45, 49)
+
+ICE_COLOR = (0, 87, 144) 
+
+#TEMP_COLORS = {
+#    13: (0, 151, 249),
+#    15: (),
+#    17: ()
+#}
+
 
 PIXELS_BASE = {2, 3, 4, 8}
 
@@ -58,7 +69,7 @@ except (FileNotFoundError, ValueError) as e:
 
         "COLOR": (223, 41, 1),
         "SUN_COLOR": (111, 89, 0),
-        "NUM": 6,
+        "NUM": 8,
         "WIND_FACTOR": 0.1,
         "RAIN_FACTOR": 0.05,
         "MODE": "12h",
@@ -134,6 +145,12 @@ def map_pixels(pixels):
 DHDataRaw = namedtuple('DHDataRaw', ['date', 'temp', 'hum', 'wind', 'rain'])
 DHData = namedtuple('DHData', ['date', 'temp', 'hum', 'wind', 'rain_deriv'])
 
+def dhdataprint(data):
+    try:
+        return "%s(date=%s, temp=%d, hum=%d, wind=%d, rain_deriv=%r)" % (data.__class__.__name__, data.date.isoformat(), data.temp, data.hum, data.wind, data.rain_deriv)
+    except:
+        return "Could not convert data."
+
 def weather_row_factory(cursor, row):
     return DHDataRaw(*row)
 
@@ -154,14 +171,15 @@ def get_closest_data_deriv(conn, date, max_diff):
         ORDER BY ABS( strftime( "%s", date ) - strftime( "%s", ? ) ) ASC
         LIMIT 2
         ''', (date, )))
-    dt = (rows[0].date - rows[1].date)
-    if dt.seconds > max_diff:
+    dt = rows[0].date - rows[1].date
+    if abs(dt.total_seconds()) > max_diff:
         r = rows[0]
         dhdata = DHData(date=r.date, temp=r.temp, hum=r.hum, wind=r.wind, rain_deriv=None)
     else:
         r = rows[0]
-        rain = (rows[0].rain - rows[1].rain) / dt.seconds
+        rain = (rows[0].rain - rows[1].rain) / dt.total_seconds()
         if rain < 0:
+            print("Rain negative %d. Ignoring." % rain)
             rain = 0
         dhdata = DHData(date=r.date, temp=r.temp, hum=r.hum, wind=r.wind, rain_deriv=rain)
     return dhdata
@@ -332,7 +350,11 @@ def find_min_max_range(conn):
             last_date = date
             last_rain = rain
             continue
-        drv = (rain - last_rain) / (date - last_date).seconds
+        try:
+            drv = (rain - last_rain) / (date - last_date).total_seconds()
+        except:
+            print("Failed for:", rain, last_rain, date, last_date)
+            drv = 0
         rain_deriv = max(rain_deriv, abs(drv))
 
     if rain_deriv == 0:
@@ -397,11 +419,12 @@ def main(socket):
         time_now = datetime.datetime.now(timezone.utc)
 
         adapted_date = adapt_date(twelve_h_ago, time_now)
+
         if not last_adapted_date or (adapted_date - last_adapted_date).seconds > 60:
             data = get_closest_data_deriv(conn, adapted_date, 60 * 30)
-            print("Fetching new data:", data)
+            print("Fetching new data:", dhdataprint(data))
 
-        last_adapted_date = adapted_date
+            last_adapted_date = adapted_date
 
 
         sun_altitude = pysolar.solar.get_altitude(
@@ -409,7 +432,7 @@ def main(socket):
             longitude_deg=CONFIG["LONGITUDE_DEG"],
             when=adapted_date
         )
-        print(repr(adapted_date), sun_altitude)
+        print("Replay %s, sun: %d.2, data: %s" % (adapted_date.isoformat(), sun_altitude, dhdataprint(data)))
 
         sun_pixels_a_dens = set_density(SUN_PIXELS_A(), sun_altitude, 0, 90)
         sun_pixels_b_dens = set_density(SUN_PIXELS_B(), sun_altitude, 0, 90)
@@ -452,6 +475,33 @@ def main(socket):
                 c2 = frame[rand_pix].copy()
                 frame[p] = c2
                 frame[rand_pix] = c1
+
+        ice_pixels = list(TEMP_PIXELS())
+        if data.temp < -20:
+            ice_pixels = ice_pixels[:4]
+            frame[ice_pixels] = ICE_COLOR
+        elif data.temp < -10:
+            ice_pixels = ice_pixels[:3]
+            frame[ice_pixels] = ICE_COLOR
+        elif data.temp < -5:
+            ice_pixels = ice_pixels[:2]
+            frame[ice_pixels] = ICE_COLOR
+        elif data.temp <= 0:
+            ice_pixels = ice_pixels[:1]
+            frame[ice_pixels] = ICE_COLOR
+        elif data.temp < 10:
+            ice_pixels = ice_pixels[:1]
+            frame[ice_pixels] = CONFIG["SUN_COLOR"]
+        elif data.temp < 20:
+            ice_pixels = ice_pixels[:2]
+            frame[ice_pixels] = CONFIG["SUN_COLOR"]
+        elif data.temp < 30:
+            ice_pixels = ice_pixels[:3]
+            frame[ice_pixels] = CONFIG["SUN_COLOR"]
+        else:
+            ice_pixels = ice_pixels[:4]
+            frame[ice_pixels] = CONFIG["SUN_COLOR"]
+
 
 #        print(np.count_nonzero(frame), sum((frame != [0., 0., 0.]).all(1)))
         client.put_pixels(map_pixels(frame))
